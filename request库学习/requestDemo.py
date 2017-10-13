@@ -2,7 +2,7 @@ import requests
 
 url = 'http://httpbin.org/post'
 file = {'file':open('/Users/HelloWorld/Desktop/demo.txt','rb')}
-r = requests.post("http://httpbin.org/post", files = file)
+r = requests.post(url, files = file)
 # print r.text
 
 
