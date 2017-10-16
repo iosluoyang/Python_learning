@@ -1,13 +1,12 @@
 # encoding: utf-8
 
-import urllib2
 import re
 import sys
 sys.path.append("..")
 from publicTools.public import GetHtmlDataClass
 
 gethtml = GetHtmlDataClass()
-html = gethtml.gethtml('http://www.qiushibaike.com/',None,False,'utf-8')
+html = gethtml.gethtml('http://www.qiushibaike.com/')
 
 pattern = re.compile('<div\s*?class="content">.*?<span>(.*?)</span>',re.S)   #使用点匹配模式 re.S
 match = re.findall(pattern,html) #获取段子集合

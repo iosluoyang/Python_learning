@@ -1,7 +1,5 @@
 # -*- coding: UTF-8 -*-
 
-
-
 #发送附件邮件
 
 #邮件对象
@@ -32,16 +30,16 @@ def sendemail():
 	msg['To'] = _format_addr('邮件接收人:%s' % to_addr)
 	msg['Subject'] = Header('这封邮件的主题是看你开心看你闹', 'utf-8').encode()
 
-	# 邮件正文是MIMEText:
-	msg.attach(MIMEText('<html><body><h1>给你发送一张图片叫做sunrise</h1>' +
-						'<p><img src="cid:0"></p>' +
-						'</body></html>', 'html', 'utf-8'))
+
+	#要把图片嵌入到邮件正文中，我们只需按照发送附件的方式，先把邮件作为附件添加进去
+	#然后，在HTML中通过引用src="cid:0"就可以把附件作为图片嵌入了。如果有多个图片，给它们依次编号，然后引用不同的cid:x即可
 	# 添加附件就是加上一个MIMEBase,从本地读取一个图片:
 	with open('/Users/HelloWorld/Desktop/sky.jpg', 'rb') as f:
 		# 设置附件的MIME和文件名，这里是jpg格式:
-		mime = MIMEBase('image', 'jpg', filename='sky.jpg')
+		filename = 'surprise'
+		mime = MIMEBase('image', 'jpg', filename=filename)
 		# 加上必要的头信息:
-		mime.add_header('Content-Disposition', 'attachment', filename='sky.jpg')
+		mime.add_header('Content-Disposition', 'attachment', filename=filename)
 		mime.add_header('Content-ID', '<0>')
 		mime.add_header('X-Attachment-ID', '0')
 
@@ -51,6 +49,13 @@ def sendemail():
 		encoders.encode_base64(mime)
 		# 添加到MIMEMultipart:
 		msg.attach(mime)
+
+	# 邮件正文是MIMEText:
+	msg.attach(MIMEText('<html><body><h1>给你发送一张图片叫做sunrise</h1>' +
+						'<p><img src="cid:0"></p>' +
+						'</body></html>', 'html', 'utf-8'))
+
+
 	# 发送
 	server = smtplib.SMTP(smtp_server, 25)
 	server.set_debuglevel(1)
@@ -60,12 +65,9 @@ def sendemail():
 
 
 # BlockingScheduler
-scheduler = BlockingScheduler()
-scheduler.add_job(sendemail,  'cron', day_of_week='0-6', hour=19, minute=18)
-scheduler.start()
+# scheduler = BlockingScheduler()
+# scheduler.add_job(sendemail,  'cron', day_of_week='0-6', hour=11, minute=42)
+# scheduler.start()
 
-
-
-
-
+sendemail()
 

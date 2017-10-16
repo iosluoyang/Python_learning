@@ -115,5 +115,4 @@ class GetHtmlDataClass:
 
 
 
-# x = GetHtmlDataClass()
-# x.gethtml("http://dianying.2345.com/top/",None,False,'gbk')
+
