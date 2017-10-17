@@ -5,7 +5,6 @@
 
 #此类默认为使用本人ioslhy@163.com这个邮箱进行作为发送人,须知163邮箱的smtp_server是smtp.163.com 端口默认为25
 
-
 #构造邮件内容需要引入的库
 from email import  encoders
 from email.header import Header
@@ -20,10 +19,15 @@ from urllib import urlretrieve #自动下载网络图片到本地
 import shutil
 import os
 import datetime
-
-from apscheduler.schedulers.blocking import BlockingScheduler #定时任务类库
 from datetime import datetime
 
+#设置默认的编码方式为utf-8
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
+
+#发送邮件时保存图片的目录
+EmailFilePath = "EmailPic"
 
 
 
@@ -31,16 +35,16 @@ class SendMailClass():
 
     #发送邮件 注意此处必选参数必须在前，有默认值的参数在后
     def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',toNickname='嗨我亲爱的你',emailsubject='这是一封你点了就会后悔的信'):
-        fromaddress = 'ioslhy@163.com'#发件人地址
-        frompwd = 'wyhhsh1993' #发件人密码
-        fromsmtpserver = 'smtp.163.com' #SMTP服务器地址
-        to_addrs = toaddressarr #收件人邮箱数组
-        fromnickname = fromNickname #发件人昵称
-        tonickname = toNickname #收件人昵称
-        subject = emailsubject #邮件主题
-        textcontent = emailtextcontent #邮件文本内容
-        imgUrlArr = emailimgArr #邮件正文中要显示的图片链接或者本地图片路径
-        localfiles = emaillocalfiles #邮件中的附件数组，每一个数组都是一个字典对象,包含了文件路径，附件类型，附件后缀以及附件的展示名称
+        fromaddress = 'ioslhy@163.com'  #发件人地址
+        frompwd = 'wyhhsh1993'  #发件人密码
+        fromsmtpserver = 'smtp.163.com'  #SMTP服务器地址
+        to_addrs = toaddressarr     #收件人邮箱数组
+        fromnickname = fromNickname     #发件人昵称
+        tonickname = toNickname     #收件人昵称
+        subject = emailsubject  #邮件主题
+        textcontent = emailtextcontent  #邮件文本内容
+        imgUrlArr = emailimgArr     #邮件正文中要显示的图片链接或者本地图片路径
+        localfiles = emaillocalfiles    #邮件中的附件数组，每一个数组都是一个字典对象,包含了文件路径，附件类型，附件后缀以及附件的展示名称
 
         #注意，该工具类暂时使用html类型,如果需要根据情况更改直接更改类型即可
 
@@ -56,7 +60,11 @@ class SendMailClass():
             global msgImage
             if ("http" in img):
                 #说明是网络图片，先下载到本地进行保存
-                Path = "EmailPic/"+datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M:%S')+'-'+str(i)+'.jpg'
+
+                #首先创建EmailPic文件夹
+                if not os.path.isdir(EmailFilePath):
+                    os.makedirs(EmailFilePath)
+                Path = EmailFilePath+"/"+datetime.strftime(datetime.now(),'%Y-%m-%d %H:%M:%S')+'-'+str(i)+'.jpg'
                 urlretrieve(img,Path)
                 imgfile = open(Path,'rb').read()
                 msgImage = MIMEImage(imgfile)
@@ -69,10 +77,9 @@ class SendMailClass():
             msgImage.add_header("Content-ID", '<image{count}>'.format(count=i))
             msg.attach(msgImage)
             contentimg += "<p><img src='cid:image{count}'></p>".format(count=i)  # 给后面的正文增加图片
-        #遍历完成之后将EmailPic文件夹内的所有文件都清空
-        shutil.rmtree('EmailPic')
-        os.mkdir('EmailPic')
 
+        #遍历完成之后将EmailPic文件夹内的所有文件都清空(连同EmailPic文件夹一起删除)
+        shutil.rmtree(EmailFilePath)
 
         #遍历附件数组
         for i,localfile in enumerate(localfiles):
@@ -126,13 +133,14 @@ def _format_addr(s):
 
 
 
-sendmailclass = SendMailClass()
-sendmailclass.sendmail(
-                        ["891508172@qq.com","3029068348@qq.com"],
-                        "<h1 style='color: red'>幸福就是:~~</h1><h3>看你<span style='color: orange'>闹</span>,看你<span style='color: orange'>笑</span></h3>",
-                        ["http://cdn.iciba.com/news/word/big_20171014b.jpg","http://cdn.iciba.com/news/word/big_20171012b.jpg"],
-                        [{"path":"/Users/HelloWorld/Desktop/sky.jpg","type":"image","suffix":"jpg","name":"flower.jpg"}]
-                       )
+# eg:
+# sendmailclass = SendMailClass()
+# sendmailclass.sendmail(
+#                         ["3029068348@qq.com"],
+#                         "<h1 style='color: red'>幸福就是:~~</h1><h3>看你<span style='color: orange'>闹</span>,看你<span style='color: orange'>笑</span></h3>",
+#                         ["http://cdn.iciba.com/news/word/big_20171014b.jpg","http://cdn.iciba.com/news/word/big_20171012b.jpg"],
+#                         [{"path":"/Users/HelloWorld/Desktop/sky.jpg","type":"image","suffix":"jpg","name":"flower.jpg"}]
+#                        )
 
 
 
