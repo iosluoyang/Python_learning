@@ -13,7 +13,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 sendcount = 1 #发送次数,从1开始
 currentindex = 0 #在当前页选择的帖子的索引
 lasttotalpage = 0
-def getnewestzhiliti():
+def getnewestdailysentence():
 
     pagehtml = pq('http://tieba.baidu.com/p/3433462927?see_lz=1')
     #首先获取总页码 获取li.l_reply_num中第二个span里的内容
@@ -76,10 +76,20 @@ def getnewestzhiliti():
     sendmail = SendMailClass()
 
     sendmail.sendmail(
-        ["3029068348@qq.com"],
+        [
+         "3029068348@qq.com",#自己
+         "48527544@qq.com",#友谊哥
+         "670125193@qq.com",#何军
+         "3282309044@qq.com",#鸽子
+         "952999576@qq.com", #云飞
+         "2542863509@qq.com", #温源
+         "982639828@qq.com",#军彦
+         "1778714848@qq.com"#阿信
+         ],
         "<h4 style='color: orange;font-weight: 100'>嗨,我亲爱的你," + datestr +
         ",这是小海哥第"+"<span style='color: black'>"+str(sendcount)+"</span>"+"次和你见面" "</h4>" +
-        "<h3 style='color: black;font-weight: 100'>"+tiezicontent+"</h3>",
+        "<h3 style='color: black;font-weight: 100'>"+tiezicontent+"</h3>"+
+        "<p><h4 style='color: darkgray;font-weight: 100'>小海哥每日一句为周一到周五早上九点半准时发送,该程序现为测试阶段,如有打扰,请回复邮件'你他妈为什么这么帅'退订</h4></p>",
         emailimgArr=tieziimgs,
         emailsubject="早上好啊,有句话想对你说",
         fromNickname="小海哥每日一句",
@@ -92,11 +102,10 @@ def getnewestzhiliti():
 
 
 
-
 # #以下为定时任务的代码
 sched = BlockingScheduler()
 #通过add_job来添加作业
-sched.add_job(getnewestzhiliti, 'cron', day_of_week='mon-fri',hour=9,minute=30,end_date='2017-12-31')  #每周的周一至周五早上9:30的时候执行
+sched.add_job(getnewestdailysentence, 'cron', day_of_week='mon-fri',hour=9,minute=30,end_date='2017-12-31')  #每周的周一至周五早上9:30的时候执行
 sched.start()
 
 
