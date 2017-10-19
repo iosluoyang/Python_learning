@@ -34,10 +34,10 @@ EmailFilePath = "EmailPic"
 class SendMailClass():
 
     #发送邮件 注意此处必选参数必须在前，有默认值的参数在后
-    def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',toNickname='嗨我亲爱的你',emailsubject='这是一封你点了就会后悔的信'):
+    def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',toNickname='嗨我亲爱的你',emailsubject='这是一封你点了就会后悔的信',emailfooter='——小海哥倾情奉献',emailbodybgimg=""):
         fromaddress = 'ioslhy@163.com'  #发件人地址
-        frompwd = 'wyhhsh1993'  #发件人密码
-        fromsmtpserver = 'smtp.163.com'  #SMTP服务器地址
+        frompwd = 'wyhhsh1993'  #发件人密码 163邮箱密码 wyhhsh1993 QQ邮箱密码：abnuwxtwoobhbfjj
+        fromsmtpserver = 'smtp.163.com'  #SMTP服务器地址 163邮箱SMTP服务器为smtp.163.com QQ SMTP服务器为 smtp.qq.com
         to_addrs = toaddressarr     #收件人邮箱数组
         fromnickname = fromNickname     #发件人昵称
         tonickname = toNickname     #收件人昵称
@@ -45,6 +45,8 @@ class SendMailClass():
         textcontent = emailtextcontent  #邮件文本内容
         imgUrlArr = emailimgArr     #邮件正文中要显示的图片链接或者本地图片路径
         localfiles = emaillocalfiles    #邮件中的附件数组，每一个数组都是一个字典对象,包含了文件路径，附件类型，附件后缀以及附件的展示名称
+        footerstr = emailfooter  #邮件尾脚文字 默认为"——小海哥倾情奉献"
+        bodybgimg = emailbodybgimg  #网页背景图片链接,注意只能为网络链接
 
         #注意，该工具类暂时使用html类型,如果需要根据情况更改直接更改类型即可
 
@@ -53,6 +55,17 @@ class SendMailClass():
         msg['From'] = _format_addr('%s:%s' %(fromnickname,fromaddress))
         msg['To'] = _format_addr('%s' %(tonickname))
         msg['Subject'] = Header(subject,'utf-8').encode()
+
+
+        contentheader = "" #后面需要增加到正文中的body背景图片字符串
+        # 判断有没有背景图片,如果有的话则设置body下面的div的背景图片
+        if bodybgimg != "":
+            # 如果存在背景图片的时候,则设置body下面的div的背景图片
+            contentheader = "<html><body><div style='background: url(" + bodybgimg + ");no-repeat left top;background-size: cover;width: 100%;height: 100%;>"  # 给后面的正文中body增加背景图片
+        else:  # 没有背景图片，则设置常规的body代码
+            contentheader = "<html><body><div>"
+
+
 
         contentimg = "" #后面需要增加到正文中的img字符串
         #遍历图片数组 因为不能直接将网络图片URL作为图片参数进行传输所以对于网络图片先下载再进行发送邮件
@@ -79,7 +92,11 @@ class SendMailClass():
             contentimg += "<p><img src='cid:image{count}'></p>".format(count=i)  # 给后面的正文增加图片
 
         #遍历完成之后将EmailPic文件夹内的所有文件都清空(连同EmailPic文件夹一起删除)
-        shutil.rmtree(EmailFilePath)
+        if os.path.isdir(EmailFilePath):
+            shutil.rmtree(EmailFilePath)
+
+
+
 
         #遍历附件数组
         for i,localfile in enumerate(localfiles):
@@ -109,15 +126,15 @@ class SendMailClass():
 
 
         #设置邮件正文
-        contentheader = "<html><body>"
         contenttext = textcontent
-        contentfooter = "</body></html>"
+        contentlogoname = "<p style='text-align: right;font-size: 1rem;color: #5db0fd'>"+footerstr+"</p>"
+        contentfooter = "</div></body></html>"
 
-        totalcontent = contentheader + contenttext + contentimg + contentfooter
+        totalcontent = contentheader + contenttext + contentimg + contentlogoname + contentfooter
         msg.attach(MIMEText(totalcontent,'html','utf-8'))
 
         #发送邮件
-        server = smtplib.SMTP(fromsmtpserver,25)
+        server = smtplib.SMTP(fromsmtpserver,25) #163邮箱端口号为25 QQ端口号为465
         server.login(fromaddress,frompwd)
         server.sendmail(fromaddress,to_addrs,msg.as_string())
         server.quit()

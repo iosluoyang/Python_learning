@@ -65,7 +65,7 @@ def sendemail():
 
 BlockingScheduler
 scheduler = BlockingScheduler()
-scheduler.add_job(sendemail,  'interval', minutes=2)
+scheduler.add_job(sendemail,  'interval', minutes=1)
 scheduler.start()
 
 
