@@ -34,6 +34,8 @@ EmailFilePath = "EmailPic"
 class SendMailClass():
 
     #发送邮件 注意此处必选参数必须在前，有默认值的参数在后
+    # 注意,发送邮件时如果需要正文中包含图片,则应该在正文内容中加入类似于这样的代码<img src='cid:image<index>'>放置到合适的位置 index从0开始
+    # index代表该图片在emailimgArr中的索引，因为email中图片需要在正文中找到对应的cid,所以一定要严格按照顺序进行添加,否则图片会显示不出来
     def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',toNickname='嗨我亲爱的你',emailsubject='这是一封你点了就会后悔的信',emailfooter='——小海哥倾情奉献',emailbodybgimg=""):
         fromaddress = 'ioslhy@163.com'  #发件人地址
         frompwd = 'wyhhsh1993'  #发件人密码 163邮箱密码 wyhhsh1993 QQ邮箱密码：abnuwxtwoobhbfjj
@@ -67,7 +69,6 @@ class SendMailClass():
 
 
 
-        contentimg = "" #后面需要增加到正文中的img字符串
         #遍历图片数组 因为不能直接将网络图片URL作为图片参数进行传输所以对于网络图片先下载再进行发送邮件
         for i,img in enumerate(imgUrlArr):
             global msgImage
@@ -89,7 +90,6 @@ class SendMailClass():
             # 这句代码是关键，遍历图片数组时将每个图片都增加一个特定的标识
             msgImage.add_header("Content-ID", '<image{count}>'.format(count=i))
             msg.attach(msgImage)
-            contentimg += "<p><img src='cid:image{count}'></p>".format(count=i)  # 给后面的正文增加图片
 
         #遍历完成之后将EmailPic文件夹内的所有文件都清空(连同EmailPic文件夹一起删除)
         if os.path.isdir(EmailFilePath):
@@ -130,7 +130,7 @@ class SendMailClass():
         contentlogoname = "<p style='text-align: right;font-size: 1rem;color: #5db0fd'>"+footerstr+"</p>"
         contentfooter = "</div></body></html>"
 
-        totalcontent = contentheader + contenttext + contentimg + contentlogoname + contentfooter
+        totalcontent = contentheader + contenttext  + contentlogoname + contentfooter
         msg.attach(MIMEText(totalcontent,'html','utf-8'))
 
         #发送邮件

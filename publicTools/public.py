@@ -1,7 +1,9 @@
 # -*- coding:UTF-8 -*-
 # encoding: utf-8
-
+import httplib
 import urllib2
+import hashlib  #用于MD5签名获取
+import json     #用于json数据解析
 import re
 import random
 import time
@@ -112,6 +114,53 @@ class GetHtmlDataClass:
             print '使用代理IP获取数据失败，原因是:' + e.message
             #如果请求失败的话则换作使用代理IP进行请求
             self.gethtml(url,data,True,decodestyle)
+
+#检查字符中是否存在数字，是返回True 否返回False
+def hasNumbers(inputString):
+    return any(char.isdigit() for char in inputString)
+
+
+#语言翻译方法  默认传入类型是自动检测,totype是输出类型,默认为翻译为英文,即en,如果是泰文则为th,详见:http://api.fanyi.baidu.com/api/trans/product/apidoc
+def TranslateLanguage(inputString,fromtype='auto',totype='en'):
+
+    #首先初始化百度翻译API所需要的数据
+    q = str(inputString)  #这里不需要进行encode转化,即在获取到sign之前都是不需要进行encode转化的！！！
+    myfromtype = fromtype
+    mytotype = totype
+    appid = "20171022000090209"
+    key = 'WFOiHRMxcqMKb6XkILxV'
+    salt = random.randint(10001, 99999) #随机数
+
+    #获取签名
+    m = str(appid) + q + str(salt) + key
+    m_MD5 = hashlib.md5(m)
+    sign = m_MD5.hexdigest()
+
+    #拼接参数 注意此处就要对输入内容q进行encode转化了,使用url
+    Url_1 = '/api/trans/vip/translate' #翻译原始链接
+    Url_2 = '?q=' + urllib2.quote(q) + '&from=' + myfromtype + '&to=' + mytotype + '&appid=' + str(appid) + '&salt=' + str(salt) + '&sign=' + sign  #需要拼接的参数
+    Url = Url_1 + Url_2
+    PostUrl = Url.decode()
+    httpClient = httplib.HTTPConnection('api.fanyi.baidu.com')
+    httpClient.request('GET', PostUrl)
+    # response是HTTPResponse对象
+    response = httpClient.getresponse()
+    TransResult = response.read()
+    #获取到翻译内容,进行解析
+    data = json.loads(TransResult)
+    if 'error_code' in data:
+        #翻译出错,返回默认的字符串-"百度翻译出错了哦,正在努力抢修中……"
+        print '翻译出错,原因为:', data['error_msg']
+        return "百度翻译出错了哦,正在努力抢修中……"
+    else:
+        #翻译成功,返回翻译结果
+        result = data['trans_result'][0]['dst']
+        return result
+
+
+
+
+
 
 
 

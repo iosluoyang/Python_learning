@@ -64,7 +64,6 @@ def getnewestdailysentence():
     bodybgimg = "https://timgsa.baidu.com/timg?image&quality=80&size=b9999_10000&sec=1508411212578&di=56baf79e5fb6b7f6645e2c25ab3dd92e&imgtype=0&src=http%3A%2F%2Fimgsrc.baidu.com%2Fimgad%2Fpic%2Fitem%2F3b292df5e0fe9925a0ce2f4e3ea85edf8cb171e9.jpg"
 
 
-
     print "当前是第%s页,第%s个帖子,帖子内容为:%s,帖子图片为:%s" %(currentpage ,currentindex, tiezicontent,tieziimg)
 
 
@@ -74,6 +73,12 @@ def getnewestdailysentence():
     global  sendcount
 
     sendmail = SendMailClass()
+
+    #注意,发送邮件时如果需要正文中包含图片,则应该在正文内容中加入类似于这样的代码<img src='cid:image<index>'>放置到合适的位置 index从0开始
+    #index代表该图片在emailimgArr中的索引，因为email中图片需要在正文中找到对应的cid,所以一定要严格按照顺序进行添加,否则图片会显示不出来
+    contentimgsstr = ""
+    for i,img in enumerate(tieziimgs):
+        contentimgsstr+= "<p><img src='cid:image{count}'></p>".format(count=i)
 
     sendmail.sendmail(
         [
@@ -89,7 +94,7 @@ def getnewestdailysentence():
         "<h4 style='color: orange;font-weight: 100'>嗨,我亲爱的你," + datestr +
         ",这是小海哥第"+"<span style='color: black'>"+str(sendcount)+"</span>"+"次和你见面" "</h4>" +
         "<h3 style='color: black;font-weight: 100'>"+tiezicontent+"</h3>"+
-        "<p><h4 style='color: darkgray;font-weight: 100'>小海哥每日一句为周一到周五早上九点半准时发送,该程序现为测试阶段,如有打扰,请回复邮件'你他妈为什么这么帅'退订</h4></p>",
+        "<p><h4 style='color: darkgray;font-weight: 100'>小海哥每日一句为周一到周五早上九点半准时发送,该程序现为测试阶段,如有打扰,请回复邮件'你他妈为什么这么帅'退订</h4></p>" + contentimgsstr,
         emailimgArr=tieziimgs,
         emailsubject="早上好啊,有句话想对你说",
         fromNickname="小海哥每日一句",
@@ -102,11 +107,12 @@ def getnewestdailysentence():
 
 
 
-# #以下为定时任务的代码
+#以下为定时任务的代码
 sched = BlockingScheduler()
 #通过add_job来添加作业
 sched.add_job(getnewestdailysentence, 'cron', day_of_week='mon-fri',hour=9,minute=30,end_date='2017-12-31')  #每周的周一至周五早上9:30的时候执行
 sched.start()
+
 
 
 
