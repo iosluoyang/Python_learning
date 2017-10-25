@@ -20,6 +20,7 @@ import shutil
 import os
 import datetime
 from datetime import datetime
+from config import EmailAddressEnum  #邮件联系人
 
 #设置默认的编码方式为utf-8
 import sys
@@ -149,11 +150,11 @@ def _format_addr(s):
 
 
 
-
-# eg:
+#eg:
 # sendmailclass = SendMailClass()
+# emailaddressEnum = config.EmailAddressEnum
 # sendmailclass.sendmail(
-#                         ["3029068348@qq.com"],
+#                         [emailaddressEnum.liuhaiyang2],
 #                         "<h1 style='color: red'>幸福就是:~~</h1><h3>看你<span style='color: orange'>闹</span>,看你<span style='color: orange'>笑</span></h3>",
 #                         ["http://cdn.iciba.com/news/word/big_20171014b.jpg","http://cdn.iciba.com/news/word/big_20171012b.jpg"],
 #                         [{"path":"/Users/HelloWorld/Desktop/sky.jpg","type":"image","suffix":"jpg","name":"flower.jpg"}]

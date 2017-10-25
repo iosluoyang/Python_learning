@@ -10,6 +10,10 @@ import time
 import threading
 import telnetlib #用来测试代理IP地址是否有效
 
+#邮件地址宏
+liuhaiyang = "891508172@qq.com"
+
+
 #注意此处因为其他文件引用了该文件，所以如果使用相对路径会有问题，改为绝对路径
 IPListFilePath = "/Users/HelloWorld/Documents/个人相关/TobeBetterMe/Python学习进程/Python_learning/publicTools/IPListFile.txt"
 
