@@ -20,7 +20,6 @@ import shutil
 import os
 import datetime
 from datetime import datetime
-from config import EmailAddressEnum  #邮件联系人
 
 #设置默认的编码方式为utf-8
 import sys

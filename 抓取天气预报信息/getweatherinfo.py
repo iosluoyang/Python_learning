@@ -5,6 +5,8 @@ sys.path.append("/var/www/html/python_projects/publicTools")
 
 from config import EmailAddressEnum #配置文件
 import public  #公共方法文件
+import logging #日志记录
+
 from sendEmailTools import SendMailClass #发送邮件文件
 
 from selenium import webdriver
@@ -205,45 +207,73 @@ def getweatherinfomsg(CityArr,dayindex=1):
 
         )
         print ("邮件已经发送,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
+        #每发送成功一组就进行一次日志记录
+        logging.NOTSET("邮件已经发送,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
 
 
 #发送明天的天气预报
 def sendthetomorrowinfo():
-    getweatherinfomsg(
-    [
+    try:
+        getweatherinfomsg(
+            [
 
-        {"city": "beijing", "tolanguage": "zh",
-         "toemailaddressArr":
-                                [
-                                EmailAddressEnum.liuhaiyang1,
-                                EmailAddressEnum.axin,EmailAddressEnum.wenyuan,EmailAddressEnum.junyan,EmailAddressEnum.hejun,
-                                EmailAddressEnum.youyige,EmailAddressEnum.yunfei,EmailAddressEnum.gezi
-                                ]
-         },  #北京
-        {"city": "2311", "tolanguage": "zh", "toemailaddressArr":
-                                [
-                                EmailAddressEnum.zhouhuiqiao,
-                                ]
-         },  #佛山
-        {"city": "52707", "tolanguage": "en", "toemailaddressArr":
-                                [
-                                EmailAddressEnum.Neung,
-                                ]
-         },  #巴吞他尼府
-        {"city": "xiamen", "tolanguage": "zh", "toemailaddressArr":
-                                [
-                                EmailAddressEnum.susanjie,
-                                ]
-         }   #厦门
-    ],
-    dayindex=1
-    )  #发送明天的天气预报
+                {"city": "beijing", "tolanguage": "zh",
+                 "toemailaddressArr":
+                     [
+                         EmailAddressEnum.liuhaiyang1,
+                         EmailAddressEnum.axin, EmailAddressEnum.wenyuan, EmailAddressEnum.junyan,
+                         EmailAddressEnum.hejun,
+                         EmailAddressEnum.youyige, EmailAddressEnum.yunfei, EmailAddressEnum.gezi
+                     ]
+                 },  # 北京
+                {"city": "2311", "tolanguage": "zh", "toemailaddressArr":
+                    [
+                        EmailAddressEnum.zhouhuiqiao,
+                    ]
+                 },  # 佛山
+                {"city": "52707", "tolanguage": "en", "toemailaddressArr":
+                    [
+                        EmailAddressEnum.Neung,
+                    ]
+                 },  # 巴吞他尼府
+                {"city": "xiamen", "tolanguage": "zh", "toemailaddressArr":
+                    [
+                        EmailAddressEnum.susanjie,
+                    ]
+                 }  # 厦门
+            ],
+            dayindex=1
+        )  # 发送明天的天气预报
+    except BaseException as e:
+        # 在这里捕获所有的异常(除了用户手动操作中止以外的错误)
+        if e.__class__ != KeyboardInterrupt:
+            errmsg = e.message
+            # 开始记录日志
+            logging.debug(errmsg)
+            # 向小海哥发送错误提醒邮件
+            public.senderrtoXHG("抓取天气预报信息运行模块", errmsg)
 
 
-#以下为定时任务的代码
-sched = BlockingScheduler()
-#通过add_job来添加作业
-sched.add_job(sendthetomorrowinfo, 'cron',day_of_week="mon-sun", hour=17,minute=50)  #每天下午17：50自动发送
-sched.start()
+#配置日志记录功能
+public.recordlogging()
+#开始运行程序
+try:
+    # 以下为定时任务的代码
+    sched = BlockingScheduler()
+    # 通过add_job来添加作业
+    sched.add_job(sendthetomorrowinfo, 'cron', day_of_week="mon-sun", hour=17, minute=50)  # 每天下午17：50自动发送
+    sched.start()
+except BaseException as e:
+    #在这里捕获所有的异常(除了用户手动操作中止以外的错误)
+    if e.__class__ != KeyboardInterrupt:
+
+        errmsg = e.message
+        # 开始记录日志
+        logging.debug(errmsg)
+        # 向小海哥发送错误提醒邮件
+        public.senderrtoXHG("抓取天气预报信息定时模块", errmsg)
+
+
+
 
 

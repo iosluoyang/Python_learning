@@ -5,6 +5,7 @@ sys.path.append("/var/www/html/python_projects/publicTools")
 
 from config import EmailAddressEnum #配置文件
 import public  #公共方法文件
+import logging #日志记录
 from sendEmailTools import SendMailClass #发送邮件文件
 
 from selenium import webdriver
@@ -91,32 +92,69 @@ def sendEnglishDaily(languageArr):
 
 #开始发送
 def send():
+    try:
+        sendEnglishDaily(
+            [
+                {"tolanguage":"en","toemailaddressArr":[EmailAddressEnum.Neung]},
+                {"tolanguage": "zh", "toemailaddressArr": [
+                    EmailAddressEnum.liuhaiyang1,
+                    EmailAddressEnum.liuhaiyang2,
+                    EmailAddressEnum.axin,
+                    EmailAddressEnum.wenyuan,
+                    EmailAddressEnum.junyan,
+                    EmailAddressEnum.youyige,
+                    EmailAddressEnum.hejun,
+                    EmailAddressEnum.yunfei,
+                    EmailAddressEnum.gezi,
+                    EmailAddressEnum.zhouhuiqiao,
+                    EmailAddressEnum.susanjie,
+                ]}
+            ]
+        )
+    except BaseException as e:
+        # 在这里捕获所有的异常(除了用户手动操作中止以外的错误)
+        if e.__class__ != KeyboardInterrupt:
+            errmsg = e.message
+            # 开始记录日志
+            logging.debug(errmsg)
+            # 向小海哥发送错误提醒邮件
+            public.senderrtoXHG("抓取英语每日一句信息运行模块", errmsg)
 
-    sendEnglishDaily(
-        [
-            {"tolanguage":"en","toemailaddressArr":[EmailAddressEnum.Neung]},
-            {"tolanguage": "zh", "toemailaddressArr": [
-                EmailAddressEnum.liuhaiyang1,
-                EmailAddressEnum.liuhaiyang2,
-                EmailAddressEnum.axin,
-                EmailAddressEnum.wenyuan,
-                EmailAddressEnum.junyan,
-                EmailAddressEnum.hejun,
-                EmailAddressEnum.youyige,
-                EmailAddressEnum.yunfei,
-                EmailAddressEnum.gezi,
-                EmailAddressEnum.zhouhuiqiao,
-                EmailAddressEnum.susanjie,
-            ]}
-        ]
-    )
+
+#开始执行发送程序加入异常处理和日志记录
+#配置日志记录功能
+public.recordlogging()
+
+try:
+    #以下为定时任务的代码
+    sched = BlockingScheduler()
+    # 通过add_job来添加作业
+    sched.add_job(send, 'cron', day_of_week="mon-sun", hour=9, minute=10)  # 每天早上9点10分自动发送
+    sched.start()
+except BaseException as e:
+    #在这里捕获所有的异常(除了用户手动操作中止以外的错误)
+    if e.__class__ != KeyboardInterrupt:
+
+        errmsg = e.message
+        # 开始记录日志
+        logging.debug(errmsg)
+        # 向小海哥发送错误提醒邮件
+        public.senderrtoXHG("抓取英语每日一句定时模块", errmsg)
 
 
-#以下为定时任务的代码
-sched = BlockingScheduler()
-#通过add_job来添加作业
-sched.add_job(send, 'cron',day_of_week="mon-sun", hour=9,minute=10)  #每天早上9点10分自动发送
-sched.start()
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

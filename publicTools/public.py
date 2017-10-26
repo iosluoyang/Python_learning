@@ -9,9 +9,9 @@ import random
 import time
 import threading
 import telnetlib #用来测试代理IP地址是否有效
+import logging #日志模块
+import sendEmailTools #发送邮件模块
 
-#邮件地址宏
-liuhaiyang = "891508172@qq.com"
 
 
 #注意此处因为其他文件引用了该文件，所以如果使用相对路径会有问题，改为绝对路径
@@ -160,6 +160,56 @@ def TranslateLanguage(inputString,fromtype='auto',totype='en'):
         #翻译成功,返回翻译结果
         result = data['trans_result'][0]['dst']
         return result
+
+#日志记录功能
+def recordlogging():
+
+#     logging.basicConfig函数各参数:
+#     filename: 指定日志文件名
+#     filemode: 和file函数意义相同，指定日志文件的打开模式，'w'或'a'
+#     format: 指定输出的格式和内容，format可以输出很多有用信息，如上例所示:
+#     % (levelno)s: 打印日志级别的数值
+#     % (levelname)s: 打印日志级别名称
+#     % (pathname)s: 打印当前执行程序的路径，其实就是sys.argv[0]
+#     % (filename)s: 打印当前执行程序名
+#     % (funcName)s: 打印日志的当前函数
+#     % (lineno)d: 打印日志的当前行号
+#     % (asctime)s: 打印日志的时间
+#     % (thread)d: 打印线程ID
+#     % (threadName)s: 打印线程名称
+#     % (process)d: 打印进程ID
+#     % (message)s: 打印日志信息
+#
+#     datefmt: 指定时间格式，同time.strftime()
+#     level: 设置日志级别，默认为logging.WARNING
+#     stream: 指定将日志的输出流，可以指定输出到sys.stderr, sys.stdout或者文件，默认输出到sys.stderr，当stream和filename同时指定时，stream被忽略
+#     日志级别大小关系为：CRITICAL > ERROR > WARNING > INFO > DEBUG > NOTSET，当然也可以自己定义日志级别。
+    logging.basicConfig(level=logging.DEBUG,
+                        format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                        datefmt='%a, %d %b %Y %H:%M:%S',
+                        filename='myproject.log',
+                        filemode='w')
+
+    #################################################################################################
+    #定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
+    console = logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+    #################################################################################################
+
+#向小海哥发送错误提醒邮件
+def senderrtoXHG(projectname,errmsg):
+    errtoXHG = sendEmailTools.SendMailClass()
+    errtoXHG.sendmail(
+        ["891508172@qq.com"],
+        "工程名称:"+projectname+"  错误:" +errmsg,
+        emailsubject="程序《"+projectname+"》发生错误,小海哥点击查看吧~",
+        emailfooter="——小海哥Bug纠察中心",
+    )
+    print "Bug纠察中心已经收到程序的反馈日志,请耐性等待小海哥的处理"
+
 
 
 
