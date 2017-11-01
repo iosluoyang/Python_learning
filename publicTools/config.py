@@ -1,8 +1,6 @@
 # -*- coding:UTF-8 -*-
 # encoding: utf-8
 
-# import unique
-# from enum import Enum
 
 
 def enum(**enums):

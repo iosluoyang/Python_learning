@@ -3,16 +3,17 @@
 import sys
 sys.path.append("/var/www/html/python_projects/publicTools")
 
-from config import EmailAddressEnum #配置文件
-import public  #公共方法文件
-import logging #日志记录
-from sendEmailTools import SendMailClass #发送邮件文件
 
-from selenium import webdriver
+import logging #日志记录
+
+import public  #公共方法文件
+from config import EmailAddressEnum #配置文件中的邮件地址集合
+from selenium import webdriver #打开浏览器文件
+from sendEmailTools import SendMailClass #发送邮件文件
 
 import datetime
 from datetime import datetime
-from  apscheduler.schedulers.blocking import  BlockingScheduler
+from  apscheduler.schedulers.blocking import  BlockingScheduler #定时任务
 
 
 #进行翻译转化过滤
@@ -26,11 +27,29 @@ def getTranslateresult(str,tolanguagetype):
 
 def sendEnglishDaily(languageArr):
 
-    #首先获取当前日期
+    # 首先获取当前日期
     timestr = datetime.strftime(datetime.now(), '%Y-%m-%d')
     url = "http://news.iciba.com/views/dailysentence/daily.html#!/detail/title/" + timestr
-    browser = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true','--ssl-protocol=TLSv1'])
-    browser.get(url)
+    browser = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
+    #设置加载超时时长
+    browser.set_page_load_timeout(60)
+    browser.set_script_timeout(60)  # 这两种设置都进行才有效
+    #尝试获取获取网页数据,如果超过1分钟还没有加载完,则尝试重新加载
+    try:
+        browser.get(url)
+    except Exception as e:
+        if e != KeyboardInterrupt:
+            #停止加载网页,重新加载一次
+            logging.debug("加载网页超时,开始重新加载")
+            browser.execute_script('window.stop()')
+            send()
+            return
+
+
+
+
+
+    #开始解析数据:
 
     #每日一句 en:
     dailyEnglish = browser.find_element_by_css_selector("div.detail-content-en").text
@@ -47,7 +66,14 @@ def sendEnglishDaily(languageArr):
     #点赞数量
     dailyZanNumber = browser.find_element_by_css_selector("div.detail-content-numbers span.numbers-zan").text
 
-    print dailyEnglish + "\n" + dailyChinese + "\n" + dailyDes + "\n" + dailyImgUrl + "\n" + dailyZanNumber
+    #如果这5个数据其中有一个数据缺失的话都重新加载数据
+    if (not dailyEnglish or  not dailyChinese or not dailyDes or not dailyImgUrl or not dailyZanNumber):
+        print "缺失数据,重新开始加载"
+        logging.debug("抓取数据中有缺失的数据,故重新开始加载")
+        send()
+        return
+
+    logging.info("抓取数据成功:" + dailyEnglish + "\n" + dailyChinese + "\n" + dailyDes + "\n" + dailyImgUrl + "\n" + dailyZanNumber)
 
 
     #遍历目标语言数组，针对每一种语言进行翻译或不翻译，然后发送给该语种对应的邮件接收人
@@ -83,63 +109,47 @@ def sendEnglishDaily(languageArr):
             totalHtml,
             emailimgArr=totalimgs,
             emailsubject=totalsubject,
-            fromNickname=getTranslateresult("小海哥每日一句",languagetype),
-            emailfooter="--" + getTranslateresult("小海哥每日一句",languagetype)
+            fromNickname=getTranslateresult("小海哥每日一句", languagetype),
+            emailfooter="--" + getTranslateresult("小海哥每日一句", languagetype)
         )
-        print ("第"+str(i)+"组邮件发送完毕,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
 
-    print ("邮件全部发送完毕,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
+
+        logging.info("第"+str(i)+"组邮件发送完毕,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
+
+    logging.info("邮件全部发送完毕,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
 
 #开始发送
 def send():
-    try:
-        sendEnglishDaily(
-            [
-                {"tolanguage":"en","toemailaddressArr":[EmailAddressEnum.Neung]},
-                {"tolanguage": "zh", "toemailaddressArr": [
+
+    sendEnglishDaily(
+        [
+            {
+                "tolanguage": "zh", "toemailaddressArr":
+                [
                     EmailAddressEnum.liuhaiyang1,
-                    EmailAddressEnum.liuhaiyang2,
-                    EmailAddressEnum.axin,
-                    EmailAddressEnum.wenyuan,
-                    EmailAddressEnum.junyan,
-                    EmailAddressEnum.youyige,
-                    EmailAddressEnum.hejun,
-                    EmailAddressEnum.yunfei,
-                    EmailAddressEnum.gezi,
-                    EmailAddressEnum.zhouhuiqiao,
-                    EmailAddressEnum.susanjie,
-                ]}
-            ]
-        )
-    except BaseException as e:
-        # 在这里捕获所有的异常(除了用户手动操作中止以外的错误)
-        if e.__class__ != KeyboardInterrupt:
-            errmsg = e.message
-            # 开始记录日志
-            logging.debug(errmsg)
-            # 向小海哥发送错误提醒邮件
-            public.senderrtoXHG("抓取英语每日一句信息运行模块", errmsg)
+                ]
+            },
+        ]
+    )
 
 
-#开始执行发送程序加入异常处理和日志记录
 #配置日志记录功能
 public.recordlogging()
 
+#开始执行发送程序
 try:
     #以下为定时任务的代码
     sched = BlockingScheduler()
-    # 通过add_job来添加作业
-    sched.add_job(send, 'cron', day_of_week="mon-sun", hour=9, minute=10)  # 每天早上9点10分自动发送
+    #通过add_job来添加作业
+    sched.add_job(send, 'cron', day_of_week="mon-sun", hour=8, minute=00)  # 每天早上8点00分自动发送
     sched.start()
-except BaseException as e:
-    #在这里捕获所有的异常(除了用户手动操作中止以外的错误)
-    if e.__class__ != KeyboardInterrupt:
+except Exception as e:
+    if e != KeyboardInterrupt:
+        logging.debug("运行定时任务发生错误")
 
-        errmsg = e.message
-        # 开始记录日志
-        logging.debug(errmsg)
-        # 向小海哥发送错误提醒邮件
-        public.senderrtoXHG("抓取英语每日一句定时模块", errmsg)
+
+
+
 
 
 

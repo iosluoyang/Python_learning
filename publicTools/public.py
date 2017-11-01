@@ -14,16 +14,9 @@ import sendEmailTools #发送邮件模块
 
 
 
-#注意此处因为其他文件引用了该文件，所以如果使用相对路径会有问题，改为绝对路径
-IPListFilePath = "/Users/HelloWorld/Documents/个人相关/TobeBetterMe/Python学习进程/Python_learning/publicTools/IPListFile.txt"
-
-#获取网页数据类 (包含随机IP地址 User_Agent等信息)
-class GetHtmlDataClass:
-
-
-    #初始化方法
-    def __init__(self):
-        self.user_agent_list = [
+#全局宏
+#User_Agent数组
+User_Agent_List = [
             "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
             "Mozilla/5.0 (X11; CrOS i686 2268.111.0) AppleWebKit/536.11 (KHTML, like Gecko) Chrome/20.0.1132.57 Safari/536.11",
             "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/536.6 (KHTML, like Gecko) Chrome/20.0.1092.0 Safari/536.6",
@@ -43,6 +36,16 @@ class GetHtmlDataClass:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24",
             "Mozilla/5.0 (Windows NT 6.2; WOW64) AppleWebKit/535.24 (KHTML, like Gecko) Chrome/19.0.1055.1 Safari/535.24"
         ]
+#IP文件存储的路径       注意此处因为其他文件引用了该文件，所以如果使用相对路径会有问题，改为绝对路径
+IPListFilePath = "/Users/HelloWorld/Documents/个人相关/TobeBetterMe/Python学习进程/Python_learning/publicTools/IPListFile.txt"
+
+#获取网页数据类 (包含随机IP地址 User_Agent等信息)
+class GetHtmlDataClass:
+
+
+    #初始化方法
+    def __init__(self):
+        self.user_agent_list = User_Agent_List
         self.IPListArr = []
 
         #没有必要每次运行程序都抓取最新的IP地址，这个IP地址的文件手动来控制，如果内容为空时即自动抓取
@@ -187,11 +190,11 @@ def recordlogging():
     logging.basicConfig(level=logging.DEBUG,
                         format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',
-                        filename='myproject.log',
+                        filename='logfile.txt',
                         filemode='w')
 
     #################################################################################################
-    #定义一个StreamHandler，将INFO级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
+    #定义一个StreamHandler，将DEBUG级别或更高的日志信息打印到标准错误，并将其添加到当前的日志处理对象#
     console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
     formatter = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')

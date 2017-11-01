@@ -29,7 +29,7 @@ def getTranslateresult(str,tolanguagetype):
 #日期索引dayindex代表的是发送今天的还是明天的还是后几天的天气,0代表今天的天气情况，数值为0~6，默认为明天的天气情况,即dayindex = 1
 def getweatherinfomsg(CityArr,dayindex=1):
     #循环每一个城市，给该城市下对应的邮件接收者发送对应日期的天气预报
-    for citydic in CityArr:
+    for i, citydic in enumerate(CityArr):
         #城市编码/名称
         city = citydic["city"]
         #tolanguage 目标语言类型
@@ -45,6 +45,7 @@ def getweatherinfomsg(CityArr,dayindex=1):
         # 因为是js加载的，所以使用phantomjs来加载  注意此处需要增加这两个参数,否则有些网站获取不到网页源码！！！
         browser = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
         browser.get(url)
+
 
         # 城市名称+天气两个字:
         cwrname = browser.find_element_by_css_selector(".page-title").text
@@ -110,6 +111,10 @@ def getweatherinfomsg(CityArr,dayindex=1):
         windiconUrl = weatherinfodic["windiconUrl"]  # eg:https://tq-s.malmam.com/images/direct/3.png
         winddes = weatherinfodic["winddes"]  # eg:东南风3级
 
+        logging.info(
+            "抓取第" + str(i) + "组天气信息成功,天气信息为:" +cwrname + week + " " + date + " " + lowtemp + " " + hightemp + " "
+            + weathericonUrl + " " + weatherdes + " " + windiconUrl + " " + winddes + " ")
+
         #发送邮件
         sendmail = SendMailClass()
 
@@ -135,7 +140,6 @@ def getweatherinfomsg(CityArr,dayindex=1):
         content7 = "<span style='color: orange;font-weight: 200'>" + getTranslateresult(dresssuggest,tolanguagetype) + "</span>"
 
 
-
         #关于极端温度的提示  此处设置为最低温度低于-5℃时提醒温度较低，最高温度高于35℃时提醒气温过高
         content8 = ""
         lowtempint = float(lowtemp)
@@ -153,47 +157,6 @@ def getweatherinfomsg(CityArr,dayindex=1):
         totalimgs = [weathericonUrl, windiconUrl]
         totalsubject = getTranslateresult("嗨," + week ,tolanguagetype) + " "+ lowtemp + "~" + hightemp + " " + getTranslateresult(dresssuggest,tolanguagetype)
 
-        # #小海哥问候语
-        # timestr = datetime.strftime(datetime.now(), '此刻是%Y年%m月%d日的%H:%M:%S')
-        # content1 = "<h4 style='color: orange;font-weight: 100'>"+ "嗨,我亲爱的你," + timestr + ",小海哥炫酷无敌地提示您:" + "</h4>"
-        #
-        # #城市天气名字字样
-        # cityweathername = cwrname.strip("天气") # 北京
-        # content2 = "<span style='color: #5db0fd;font-size:2rem'>"+cityweathername+"</span>"
-        #
-        # #日期称呼
-        # datename = week if dayindex !=2 else "后天" #设置日期称呼，暂时设置为第一二三天称呼为今天 明天 后天 其他的称呼为星期几
-        # content3 = datename + "是" + "<span style='color: orange;font-weight: 100'>" + date + "</span>" + ","
-        #
-        # #温度显示
-        # content4 = "温度为:" + "<span style='color: #5db0fd;font-weight: 200;font-size=large'>" + lowtemp + "~" + hightemp + "</span>" + ","
-        #
-        # #天气描述
-        # content5 = weatherdes + "<img src='cid:image0' width:30px height=30px>" + ","
-        #
-        # #风向描述
-        # content6 = winddes + "<img src='cid:image1'>"
-        #
-        # #穿衣建议
-        # content7 = "<h3 style='color: darkorange;font-weight: 250'>" + dresssuggest + "</h3>"
-        #
-        # #低温高温提醒
-        # content8 = ""
-        #
-        # #关于温度和穿衣建议的提示  此处设置为最低温度低于10℃时提醒温度较低，最高温度高于32℃时提醒气温过高
-        # lowtempint = float(lowtemp)
-        # hightempint = float(hightemp.strip("℃"))
-        # if lowtempint < 10:
-        #     content8 = "<h4 style='color: #1C3B6E;font-weight: 200'>" +"小海哥都觉得冷了,亲也要注意保暖御寒哦~~"+"</h4>"
-        # if hightempint > 32:
-        #     content8 = "<h4 style='color: #FA331C;font-weight: 200'>" +"小海哥都热疯了,亲也要注意防暑哦~~"+"</h4>"
-        #
-        # content9 = "<p><h4 style='color: darkgray;font-weight: 100;font-size:small'>小海哥每分每秒每行代码的运行,只是为了提醒你,照顾好自己。"+\
-        #            "该程序现为测试阶段,如果正文中图片显示不出来,请点击信任该发件人即可,不信你试试(傲娇脸~~)。如有打扰,请回复本邮件'你为什么这么帅'退订</h4></p>"
-        #
-        # totalhtml = content1 + content2 + content3 + content4 + content5 + content6 + content7 + content8 + content9
-        # totalimgs = [weathericonUrl,windiconUrl]
-        # totalsubject = "嗨,你还好吗？" +week + lowtemp + "~" + hightemp + "——" + dresssuggest
 
 
         sendmail.sendmail(
@@ -206,52 +169,24 @@ def getweatherinfomsg(CityArr,dayindex=1):
             # emailbodybgimg=bodybgimg
 
         )
-        print ("邮件已经发送,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
         #每发送成功一组就进行一次日志记录
-        logging.NOTSET("邮件已经发送,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
+        logging.info("第"+str(i)+"邮件已经发送,发送时间:" + datetime.strftime(datetime.now(), '%Y-%m-%d %H:%M:%S'))
 
 
 #发送明天的天气预报
 def sendthetomorrowinfo():
-    try:
-        getweatherinfomsg(
-            [
+    getweatherinfomsg(
+        [
 
-                {"city": "beijing", "tolanguage": "zh",
-                 "toemailaddressArr":
-                     [
-                         EmailAddressEnum.liuhaiyang1,
-                         EmailAddressEnum.axin, EmailAddressEnum.wenyuan, EmailAddressEnum.junyan,
-                         EmailAddressEnum.hejun,
-                         EmailAddressEnum.youyige, EmailAddressEnum.yunfei, EmailAddressEnum.gezi
-                     ]
-                 },  # 北京
-                {"city": "2311", "tolanguage": "zh", "toemailaddressArr":
-                    [
-                        EmailAddressEnum.zhouhuiqiao,
-                    ]
-                 },  # 佛山
-                {"city": "52707", "tolanguage": "en", "toemailaddressArr":
-                    [
-                        EmailAddressEnum.Neung,
-                    ]
-                 },  # 巴吞他尼府
-                {"city": "xiamen", "tolanguage": "zh", "toemailaddressArr":
-                    [
-                        EmailAddressEnum.susanjie,
-                    ]
-                 }  # 厦门
-            ],
-            dayindex=1
-        )  # 发送明天的天气预报
-    except BaseException as e:
-        # 在这里捕获所有的异常(除了用户手动操作中止以外的错误)
-        if e.__class__ != KeyboardInterrupt:
-            errmsg = e.message
-            # 开始记录日志
-            logging.debug(errmsg)
-            # 向小海哥发送错误提醒邮件
-            public.senderrtoXHG("抓取天气预报信息运行模块", errmsg)
+            {"city": "beijing", "tolanguage": "zh",
+             "toemailaddressArr":
+                 [
+                     EmailAddressEnum.liuhaiyang1,
+                 ]
+             },  # 北京
+        ],
+        dayindex=1
+    )  # 发送明天的天气预报
 
 
 #配置日志记录功能
@@ -263,15 +198,9 @@ try:
     # 通过add_job来添加作业
     sched.add_job(sendthetomorrowinfo, 'cron', day_of_week="mon-sun", hour=17, minute=50)  # 每天下午17：50自动发送
     sched.start()
-except BaseException as e:
-    #在这里捕获所有的异常(除了用户手动操作中止以外的错误)
-    if e.__class__ != KeyboardInterrupt:
-
-        errmsg = e.message
-        # 开始记录日志
-        logging.debug(errmsg)
-        # 向小海哥发送错误提醒邮件
-        public.senderrtoXHG("抓取天气预报信息定时模块", errmsg)
+except Exception as e:
+    if e != KeyboardInterrupt:
+        logging.debug("运行定时任务发生错误")
 
 
 
