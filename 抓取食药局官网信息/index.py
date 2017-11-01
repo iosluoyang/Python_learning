@@ -126,32 +126,166 @@ def GetJsonDataWithCookies():
         'https:': 'https://144.255.48.197'
     }
     try:
-        response = requests.post(url, headers=headers, data=data, proxies=proxies,timeout=60)
-        #print "获取到的申报数据信息为:" + response.content
+        response = requests.post(url, headers=headers, data=data, proxies=proxies,timeout=100)
+        print "获取到的申报数据信息为:" + response.content
         #将Json数据转换为字典对象
         currentstatusdic = json.loads(response.content)
-        print currentstatusdic
+        #print currentstatusdic
         #获取最新的数据情况
         newestdata = currentstatusdic["rows"][0]
-        #店名:
-        storename = newestdata["comMc"]
-        #审核状态:
-        shstatus = "未审核" if newestdata["logShjg"] == "0" else "已审核"
-        #是否受理
-        slstatus = "未受理" if newestdata["sqSlbz"] == "0" else "已受理"
 
-        print storename + "   " + "受理状态为:" + slstatus+ "   " +  "审核状态是:" + shstatus
+        #核对码:
+        sqHdm = newestdata["sqHdm"]
+        #上报情况 sqSbbz 0未上报  1已上报 其他 上报审核未通过
+        sbstatus = newestdata["sqSbbz"]
+        #申请名称:
+        storename = newestdata["comMc"]
+        #申请编号:
+        sqnumber = newestdata["sqSqbh"]
+        #经营场所:
+        storeplace = newestdata["jycs"]
+        #申请日期:
+        sqtime = newestdata["spjySqsj"]
+        #上报时间:
+        sbtime = newestdata["sqSbsj"]
+        #法定代表人:
+        fdpeople = newestdata["fddbr"]
+
+        #审核状态 0未审核  1已审核  其他审核未通过
+        shstatus =  newestdata["logShjg"]
+
+        #审核人:
+        shpeople = newestdata["logShrxm"]
+        #审核时间:
+        shtime = newestdata["logShsj"]
+        #审核未通过原因:
+        shrefusereason = newestdata["logShwtgyy"]
+        #预约受理时间:
+        yytime = newestdata["sqYysdsj"]
+        #是否网络经营
+        ifnetwork = newestdata["sfwljy"]
+
+        #是否受理  0未受理  1已受理 2不予受理
+        slstatus = newestdata["sqSlbz"]
+
+        #受理编号
+        slnumber = newestdata["sqlcSlbh"]
+        #受理人
+        slpeople = newestdata["sqSlrxm"]
+        #受理时间
+        sltime = newestdata["sqSlsj"]
+        #打回原因
+        slrefusereason = newestdata["sqlcDhyy"]
+        #打回时间
+        slrefusetime = newestdata["sqlcDhsj"]
+        #评分
+        rate = newestdata["sqPj"]
+
+
+        toemailAddressArr = ["891508172@qq.com", "1029854245@qq.com"]
+
+
+        #判断逻辑
+        #首先判断是否审核通过
+        #未审核
+        if shstatus == "0":
+            #然后判断是否已经受理 0未受理  1已受理 2不予受理
+            if slstatus == "0":
+
+                str = "亲,您的 《" + storename + "》 项目还处于未受理的阶段呢,请耐心等待哦。程序会自动帮你查询受理状态,一有消息就通知您"
+                logging.info(str)
+            elif slstatus == "1":
+
+                str = "亲,有进展了,您的  《" + storename + "》 项目已经有人开始受理了,受理人是:  " + slpeople + " 受理时间: "+sltime + " 受理编号是:" +slnumber + "请耐心等待受理结果,一有消息马上通知您"
+
+                # 发送邮件
+                sendmail = SendMailClass()
+                sendmail.sendmail(
+                    toemailAddressArr,
+                    str,
+                    emailsubject="亲, <"+storename+"> 项目已经开始受理",
+                    fromNickname="小海哥",
+                    emailfooter="--" + "小海哥自动抓取审核状态程序"
+                )
+
+                logging.info(str + "邮件已发送")
+
+            elif slstatus == "2":
+
+                str = "亲,很抱歉,您的 《" + storename + "》  项目当前状态为不予受理,打回原因是:  " + slrefusereason + " 打回时间是: " + slrefusetime
+                # 发送邮件
+                sendmail = SendMailClass()
+                sendmail.sendmail(
+                    toemailAddressArr,
+                    str,
+                    emailsubject="亲, <" + storename + "> 项目不予受理",
+                    fromNickname="小海哥",
+                    emailfooter="--" + "小海哥自动抓取审核状态程序"
+                )
+
+                logging.info(str + "邮件已发送")
+
+        #已审核
+        elif shstatus == "1":
+            #审核通过
+
+            str = "亲,恭喜您的  《" + storename + "》项目已经通过审核啦!"
+            # 发送邮件
+            sendmail = SendMailClass()
+            sendmail.sendmail(
+                toemailAddressArr,
+                str,
+                emailsubject="亲, <" + storename + "> 项目通过审核啦!",
+                fromNickname="小海哥",
+                emailfooter="--" + "小海哥自动抓取审核状态程序"
+            )
+
+            logging.info(str + "邮件已发送")
+
+        #审核未通过
+        else:
+            #查看审核未通过的原因
+            str = "很抱歉,您的 《"+ storename +"》项目审核未通过,原因是:  " +  shrefusereason
+            # 发送邮件
+            sendmail = SendMailClass()
+            sendmail.sendmail(
+                toemailAddressArr,
+                str,
+                emailsubject="亲, <" + storename + "> 项目审核未通过",
+                fromNickname="小海哥",
+                emailfooter="--" + "小海哥自动抓取审核状态程序"
+            )
+
+            logging.info(str + "邮件已发送")
+
 
 
     except Exception as e:
-        print "cookies失效,正在重新获取新的cookies,此次错误原因是:" +  e.message
+        logging.info("cookies失效,正在重新获取新的cookies,此次错误原因是:" +  e.message)
         #如果发生错误说明cookies失效,重新获取一次cookies然后进行访问
         Updatecookies()
         GetJsonDataWithCookies()
 
 
-Updatecookies()
-GetJsonDataWithCookies()
+def begintocheck():
+    Updatecookies()
+    GetJsonDataWithCookies()
+
+#配置日志记录功能
+public.recordlogging()
+
+#开始执行发送程序
+try:
+    #以下为定时任务的代码
+    sched = BlockingScheduler()
+    #通过add_job来添加作业
+    sched.add_job(begintocheck, 'interval', hours=1)  # 每隔一个小时抓运行一次
+    sched.start()
+except Exception as e:
+    if e != KeyboardInterrupt:
+        logging.debug("运行定时任务发生错误")
+
+
 
 
 
