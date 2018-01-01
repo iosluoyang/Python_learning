@@ -15,62 +15,71 @@ import get_songs_byalbum
 
 
 
+def get_htmlcontent_by_offset(artistid,offset):
 
-# 抓取歌手专辑集合 (限制前多少页的专辑信息)
-def get_album_byartistid(artistid,limitnum,connection):
+    html_text = BaseData.get_ablumsjson(artistid, offset)
 
-    html_text = BaseData.get_ablumsjson(artistid,limitnum)
-    #因为专辑信息抓取下来不是Json数据，所以需要用BeautifulSoup进行提取
-
-    #网页解析
+    # 因为专辑信息抓取下来不是Json数据，所以需要用BeautifulSoup进行提取
     soup = BeautifulSoup(html_text, 'html.parser')
     body = soup.body
-    albums = body.find_all('a', attrs={'class': 'tit s-fc0'})  # 获取所有专辑
+    #f返回该页的HTML内容
+    return body
 
-    i = 1
-    totalcount = len(albums)
 
-    for album in albums:
-        albume_id = album['href'].replace("/album?id=", '')
 
-        if type(album.string) == bs4.element.NavigableString:
-            albume_name = album.string
+def get_album_byartistid(artistid):
 
-            #将专辑信息保存至数据库
-            sql.save_album(albume_id, albume_name,artistid, connection)
+    allalbumsArr = [] #所有的专辑信息合集数组
 
-            #根据专辑id获取并保存相应歌曲信息
-            get_songs_byalbum.get_songs_byalbumid(albume_id,connection)
+    #offset代表页码数,所有歌手的专辑信息均从0开始,然后在第0页中的页码数据中提取出来所有的offset再接着进行遍历爬取即可
+    html_text = get_htmlcontent_by_offset(artistid,0)
+    #根据该页的页码数返回该歌手所有专辑的总共页码数,然后从2开始遍历即可
+    allpage = int(html_text.select('div.u-page > a')[-2].text)  #找到倒数第二个a的页码数即为最大的页码值 (最后一个是下一页的字样)
 
-            #汇报进度
-            print('专辑id为:%s 专辑名称为:%s 进度显示:%d / %d' %(albume_id,albume_name,i,totalcount))
-            i = i + 1
+    albums = html_text.select('#m-song-module')[0].select('li')
+    allalbumsArr.extend(albums)  # 将第0页数据先加入到数组中
+
+    #从第2页开始抓取(不包含最后一页)
+    for page in range(1,allpage):
+
+        newoffset = str(page * 12)
+        html_text = get_htmlcontent_by_offset(artistid, newoffset)
+        albums = html_text.select('#m-song-module')[0].select('li')
+        allalbumsArr.extend(albums)  # 将每一页的数据加入到数组中
+
+    #解析每一张专辑
+    for i,albumli in enumerate(allalbumsArr):
+        #专辑id
+        albumId = albumli.select("div.u-cover a.msk")[0]["href"].replace("/album?id=", '')
+
+        # 专辑名称
+        albumcoverName = albumli.select("div.u-cover")[0]['title']
+
+
+        #专辑发布时间
+        albumTime = albumli.select("span.s-fc3")[0].text
+
+        # 专辑封面图片地址
+        albumcoverUrl = albumli.select("div.u-cover img")[0]['src']
+
+
+        # 将专辑信息保存至数据库
+        sql.save_album(albumId, albumcoverName,albumTime,albumcoverUrl,artistid)
+
+        # 根据专辑id获取并保存相应歌曲信息
+        get_songs_byalbum.get_songs_byalbumid(albumId)
+
+        # 汇报进度
+        i += 1
+        print('专辑id为:%s 专辑名称为:%s 专辑封面链接为:%s 专辑发布时间为:%s 该专辑所属的歌手的id为:%s 进度显示:%d / %d' % (albumId , albumcoverName , albumcoverUrl , albumTime , artistid , i ,len(allalbumsArr)))
 
 
 
 if __name__ == "__main__":
 
-    # 开辟一个线程
-    connection1 = pymysql.connect(host='localhost',
-                                  user='root',
-                                  password='wyhhsh1993',
-                                  db='NetEase_Music',
-                                  charset='utf8mb4',
-                                  cursorclass=pymysql.cursors.DictCursor)
     artistid = input("请输入你想抓取的歌手的id:<例如周杰伦为6452,五月天为13193>")
-    ifmaxnum = input("是否限制抓取的数量(限制输入1 不限制输入0,不限制默认抓取前200张专辑)")
-    if (int(ifmaxnum) == 1):
-        #限制数量
-        maxnum = input("你想要抓取多少张专辑？直接输入数字就好~~")
-        print('你的目标是抓取%d个专辑的信息' % int(maxnum))
-        print ('开始抓取……')
+    print ('开始抓取该歌手所有专辑的信息……')
+    t1 = threading.Thread(target=get_album_byartistid, args=(str(artistid),))
+    t1.start()
 
-        t0 = threading.Thread(target=get_album_byartistid, args=(str(artistid),int(maxnum),connection1))
-        t0.start()
-
-    else:
-        #不限制数量
-        print ('开始抓取所有专辑的信息……')
-        t1 = threading.Thread(target=get_album_byartistid, args=(str(artistid),200,connection1))
-        t1.start()
 

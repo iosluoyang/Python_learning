@@ -1,5 +1,8 @@
 # -*- coding:UTF-8 -*-
 # encoding: utf-8
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 import httplib
 import urllib2
 import hashlib  #用于MD5签名获取
@@ -10,11 +13,10 @@ import time
 import threading
 import telnetlib #用来测试代理IP地址是否有效
 import logging #日志模块
-import sendEmailTools #发送邮件模块
+import csv  #读取csv文件
 
 
 
-#全局宏
 #User_Agent数组
 User_Agent_List = [
             "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.1 (KHTML, like Gecko) Chrome/22.0.1207.1 Safari/537.1",
@@ -97,8 +99,6 @@ class GetHtmlDataClass:
         else:
             #从文件中获取代理IP
             self.IPListArr = contents
-
-
 
 
     def gethtml(self,url,data=None,ifuseProxy=False,decodestyle='utf-8'):
@@ -202,16 +202,19 @@ def recordlogging():
     logging.getLogger('').addHandler(console)
     #################################################################################################
 
-#向小海哥发送错误提醒邮件
-def senderrtoXHG(projectname,errmsg):
-    errtoXHG = sendEmailTools.SendMailClass()
-    errtoXHG.sendmail(
-        ["891508172@qq.com"],
-        "工程名称:"+projectname+"  错误:" +errmsg,
-        emailsubject="程序《"+projectname+"》发生错误,小海哥点击查看吧~",
-        emailfooter="——小海哥Bug纠察中心",
-    )
-    print "Bug纠察中心已经收到程序的反馈日志,请耐性等待小海哥的处理"
+
+def returndatafromreadcsvfile(filePath):
+    data = []
+    csvFile = open(filePath, "rb")
+    with csvFile as csvfile:
+        datas = csv.DictReader(csvfile)  # 读取csv文件，返回的是迭代类型
+        for lines in datas:
+            if datas.line_num == 1:
+                continue
+            else:
+                data.append(lines)
+    csvFile.close()
+    return data
 
 
 

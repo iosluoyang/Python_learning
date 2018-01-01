@@ -14,45 +14,54 @@ connection = pymysql.connect(host='127.0.0.1',
 
 
 
-# 保存热门歌手的信息
-def save_hot_artist(artist_id, artist_name,albumSize,picUrl,img1v1Url,connection):
+# 保存热门歌手的信息   artist_id 歌手id artist_name 歌手名字   albumSize 歌手专辑总数量   musicSize 歌曲总数量 picUrl 歌手头像 img1v1Url 歌手头像(正方形头像)
+def save_hot_artist(artist_id, artist_name,albumSize,musicSize,picUrl,img1v1Url):
     with connection.cursor() as cursor:
-        sql = "INSERT INTO `Hot_Artists` (`ARTIST_ID`, `ARTIST_NAME`, `ALBUM_SIZE`, `PICURL`, `IMG1V1URL`) VALUES (%s, %s,%s, %s,%s)"
-        cursor.execute(sql, (artist_id, artist_name,albumSize,picUrl,img1v1Url))
+        sql = "INSERT INTO `hotartists` (`artist_id`, `artist_name`, `album_size`, `song_size`, `artist_pic`, `artist_pic1v1`) VALUES (%s, %s,%s,%s, %s,%s)"
+        cursor.execute(sql, (artist_id, artist_name,albumSize, musicSize , picUrl,img1v1Url))
     connection.commit()
 
 
-# 保存专辑的信息
-def save_album(album_id, album_name,artist_id,connection):
+# 保存专辑的基本信息 albumId 专辑ID albumcoverName 专辑名称 albumTime 专辑发布时间 albumcoverUrl 专辑封面图片URL artistid 该专辑所从属的歌手ID
+def save_album(albumId, albumcoverName,albumTime,albumcoverUrl,artistid):
     with connection.cursor() as cursor:
-        sql = "INSERT INTO `Albums` (`ALBUM_ID`, `ALBUM_NAME`,`ARTIST_ID`) VALUES (%s, %s, %s)"
-        cursor.execute(sql, (album_id, album_name,artist_id))
+        sql = "INSERT INTO `albums` (`album_id`, `album_coverame`,`album_time`,`album_coverurl`,`artist_id`) VALUES (%s,%s,%s,%s,%s)"
+        cursor.execute(sql, (albumId, albumcoverName,albumTime,albumcoverUrl,artistid))
     connection.commit()
 
-# 保存歌曲的信息
-def save_song(song_id, song_name,album_id,connection):
+
+# 保存专辑的简要信息和详细信息 album_id专辑id simpledes简要描述信息 moredes 详细描述信息
+def save_des_album(album_id,simpledes, moredes):
     with connection.cursor() as cursor:
-        sql = "INSERT INTO `Songs` (`SONG_ID`, `SONG_NAME`,`ALBUM_ID`) VALUES (%s, %s, %s)"
+        sql = 'update albums set album_simpledes = %s,album_moredes = %s where album_id = %s'
+        cursor.execute(sql, (simpledes, moredes,album_id))
+    connection.commit()
+
+
+# 保存歌曲的信息 song_id 歌曲id, song_name 歌曲名称  ,album_id 歌曲所属专辑id
+def save_song(song_id, song_name,album_id):
+    with connection.cursor() as cursor:
+        sql = "INSERT INTO `songs` (`song_id`, `song_name`,`album_id`) VALUES (%s, %s, %s)"
         cursor.execute(sql, (song_id, song_name,album_id))
     connection.commit()
 
 
 
 
-# 保存歌曲详情的热门评论
-def save_hotcomments_by_a_song(song_id,userID,nickname,avatarUrl,comment_time,likedCount,comment, connection):
+# 保存歌曲详情的热门评论 song_id 歌曲ID userID 评论人Id nickname 评论人昵称 avatarUrl 评论人头像地址 comment_time 评论时间 likedCount 点赞数 comment 评论内容commentId 评论Id
+def save_hotcomments_by_a_song(song_id,userID,nickname,avatarUrl,comment_time,likedCount,comment,commentId):
     with connection.cursor() as cursor:
-        sql = "INSERT INTO `HotComments` (`SONG_ID`,`USER_ID`,`NICKNAME`,`AVATARURL`,`COMMENT_TIME`,`LIKEDCOUNT`, `COMMENTSSTR`) VALUES (%s, %s, %s,%s, %s, %s,%s)"
-        cursor.execute(sql, (song_id, userID, nickname,avatarUrl,comment_time,likedCount,comment))
+        sql = "INSERT INTO `hotcomments` (`song_id`,`user_id`,`user_nickname`,`user_avatarurl`,`comment_time`,`comment_likedcount`, `comment_content`,`comment_id`) VALUES (%s, %s, %s,%s, %s, %s,%s,%s)"
+        cursor.execute(sql, (song_id, userID, nickname,avatarUrl,comment_time,likedCount,comment,commentId))
     connection.commit()
 
 
 
-# 保存歌曲详情的所有评论
-def save_comments_by_a_song(song_id,userID,nickname,avatarUrl,comment_time,likedCount,comment, connection):
+# 保存歌曲详情的普通评论 song_id 歌曲ID userID 评论人Id nickname 评论人昵称 avatarUrl 评论人头像地址 comment_time 评论时间 likedCount 点赞数 comment 评论内容commentId 评论Id
+def save_normalcomments_by_a_song(song_id,userID,nickname,avatarUrl,comment_time,likedCount,comment,commentId):
     with connection.cursor() as cursor:
-        sql = "INSERT INTO `Comments` (`SONG_ID`,`USER_ID`,`NICKNAME`,`AVATARURL`,`COMMENT_TIME`,`LIKEDCOUNT`, `COMMENTSSTR`) VALUES (%s, %s, %s,%s, %s, %s,%s)"
-        cursor.execute(sql, (song_id, userID, nickname,avatarUrl,comment_time,likedCount,comment))
+        sql = "INSERT INTO `normalcomments` (`song_id`,`user_id`,`user_nickname`,`user_avatarurl`,`comment_time`,`comment_likedcount`, `comment_content`,`comment_id`) VALUES (%s, %s, %s,%s, %s, %s,%s,%s)"
+        cursor.execute(sql, (song_id, userID, nickname, avatarUrl, comment_time, likedCount, comment, commentId))
     connection.commit()
 
 

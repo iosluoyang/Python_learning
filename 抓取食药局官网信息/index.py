@@ -13,7 +13,6 @@ import pytesseract
 import requests
 import time
 
-import logging #日志记录
 
 import public  #公共方法文件
 from config import EmailAddressEnum #配置文件中的邮件地址集合
@@ -27,11 +26,16 @@ from  apscheduler.schedulers.blocking import  BlockingScheduler #定时任务
 
 
 Cookies = "" #全局cookies变量,在获取不到Json数据之后就开始请求新的cookies更新全局变量
+#设置标识每种状态的邮件只发一次,发送完毕之后就改变全局变量的值导致后续的邮件都不会被发送,等到审核完毕之后直接取消该定时器
+ifshouli = False
+ifbuyushouli = False
+ifweitongguo = False
+
 
 #模拟登录获取cookies
 def Updatecookies():
     url = "http://as.hda.gov.cn/company_login.jsp" #登录页面地址
-    browser = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1'])
+    browser = webdriver.PhantomJS(service_args=['--ignore-ssl-errors=true', '--ssl-protocol=TLSv1','--webdriver-loglevel=ERROR'])
     browser.maximize_window()  # 将浏览器最大化
     browser.get(url)
 
@@ -74,11 +78,9 @@ def Updatecookies():
     #点击登录
     elem_loginbtn.click()
     #登录进去之后休眠5秒
-    time.sleep(1)
+    time.sleep(5)
 
-    #页面源码:
-    html = browser.page_source
-    #print html + "\n\n\n\n\n\n\n"
+
 
     #获取页面cookies
     cookie = [item["name"] + "=" + item["value"] for item in browser.get_cookies()]
@@ -126,11 +128,10 @@ def GetJsonDataWithCookies():
         'https:': 'https://144.255.48.197'
     }
     try:
-        response = requests.post(url, headers=headers, data=data, proxies=proxies,timeout=100)
+        response = requests.post(url, headers=headers, data=data, proxies=proxies,timeout=300000)
         print "获取到的申报数据信息为:" + response.content
         #将Json数据转换为字典对象
         currentstatusdic = json.loads(response.content)
-        #print currentstatusdic
         #获取最新的数据情况
         newestdata = currentstatusdic["rows"][0]
 
@@ -184,6 +185,10 @@ def GetJsonDataWithCookies():
 
         toemailAddressArr = ["891508172@qq.com", "1029854245@qq.com"]
 
+        global ifshouli
+        global ifbuyushouli
+        global ifweitongguo
+
 
         #判断逻辑
         #首先判断是否审核通过
@@ -193,43 +198,59 @@ def GetJsonDataWithCookies():
             if slstatus == "0":
 
                 str = "亲,您的 《" + storename + "》 项目还处于未受理的阶段呢,请耐心等待哦。程序会自动帮你查询受理状态,一有消息就通知您"
-                logging.info(str)
+                print str
+                #如果是未受理的阶段,则将记录发送状态的全局变量全部恢复初始值False
+
+                ifshouli = False
+                ifbuyushouli = False
+                ifweitongguo = False
+
             elif slstatus == "1":
 
                 str = "亲,有进展了,您的  《" + storename + "》 项目已经有人开始受理了,受理人是:  " + slpeople + " 受理时间: "+sltime + " 受理编号是:" +slnumber + "请耐心等待受理结果,一有消息马上通知您"
+                print str
+                #如果已经受理记录为False时,则将该值改为True并且发送邮件
+                if not ifshouli:
+                    # 发送邮件
+                    sendmail = SendMailClass()
+                    sendmail.sendmail(
+                        toemailAddressArr,
+                        str,
+                        emailsubject="亲, <" + storename + "> 项目已经开始受理",
+                        fromNickname="小海哥",
+                        emailfooter="--" + "小海哥自动抓取审核状态程序"
+                    )
 
-                # 发送邮件
-                sendmail = SendMailClass()
-                sendmail.sendmail(
-                    toemailAddressArr,
-                    str,
-                    emailsubject="亲, <"+storename+"> 项目已经开始受理",
-                    fromNickname="小海哥",
-                    emailfooter="--" + "小海哥自动抓取审核状态程序"
-                )
+                    print("邮件已发送")
+                    ifshouli = True
 
-                logging.info(str + "邮件已发送")
 
             elif slstatus == "2":
 
-                str = "亲,很抱歉,您的 《" + storename + "》  项目当前状态为不予受理,打回原因是:  " + slrefusereason + " 打回时间是: " + slrefusetime
-                # 发送邮件
-                sendmail = SendMailClass()
-                sendmail.sendmail(
-                    toemailAddressArr,
-                    str,
-                    emailsubject="亲, <" + storename + "> 项目不予受理",
-                    fromNickname="小海哥",
-                    emailfooter="--" + "小海哥自动抓取审核状态程序"
-                )
+                str = "亲,很抱歉,您的 《" + storename + "》  项目当前状态为不予受理,打回原因是:  " + slrefusereason + " 打回时间是: " + slrefusetime + " 请务必尽快修改重新提交,小海哥会自动为您检测最新一次的项目审核"
+                print str
 
-                logging.info(str + "邮件已发送")
+                if not ifbuyushouli:
+                    # 发送邮件
+                    sendmail = SendMailClass()
+                    sendmail.sendmail(
+                        toemailAddressArr,
+                        str,
+                        emailsubject="亲, <" + storename + "> 项目不予受理",
+                        fromNickname="小海哥",
+                        emailfooter="--" + "小海哥自动抓取审核状态程序"
+                    )
+
+                    print("邮件已发送")
+                    ifbuyushouli = True
 
         #已审核
         elif shstatus == "1":
             #审核通过
 
             str = "亲,恭喜您的  《" + storename + "》项目已经通过审核啦!"
+            print str
+
             # 发送邮件
             sendmail = SendMailClass()
             sendmail.sendmail(
@@ -239,54 +260,53 @@ def GetJsonDataWithCookies():
                 fromNickname="小海哥",
                 emailfooter="--" + "小海哥自动抓取审核状态程序"
             )
+            print "邮件发送成功"
 
-            logging.info(str + "邮件已发送")
+            #审核通过之后直接结束程序
+            sys.exit()
 
         #审核未通过
         else:
             #查看审核未通过的原因
-            str = "很抱歉,您的 《"+ storename +"》项目审核未通过,原因是:  " +  shrefusereason
-            # 发送邮件
-            sendmail = SendMailClass()
-            sendmail.sendmail(
-                toemailAddressArr,
-                str,
-                emailsubject="亲, <" + storename + "> 项目审核未通过",
-                fromNickname="小海哥",
-                emailfooter="--" + "小海哥自动抓取审核状态程序"
-            )
+            str = "很抱歉,您的 《"+ storename +"》项目审核未通过,原因是:  " +  shrefusereason + ' 请尽快修改相关信息重新提交审核,小海哥会自动为您检测最新的审核状态'
+            print str
 
-            logging.info(str + "邮件已发送")
+            if not ifweitongguo:
+                # 发送邮件
+                sendmail = SendMailClass()
+                sendmail.sendmail(
+                    toemailAddressArr,
+                    str,
+                    emailsubject="亲, <" + storename + "> 项目审核未通过",
+                    fromNickname="小海哥",
+                    emailfooter="--" + "小海哥自动抓取审核状态程序"
+                )
+
+                print("邮件已发送")
+                ifweitongguo = True
 
 
 
     except Exception as e:
-        logging.info("cookies失效,正在重新获取新的cookies,此次错误原因是:" +  e.message)
+        print("cookies失效,正在重新获取新的cookies,此次错误原因是:" +  e.message)
         #如果发生错误说明cookies失效,重新获取一次cookies然后进行访问
-        Updatecookies()
-        GetJsonDataWithCookies()
+        begintocheck()
 
 
 def begintocheck():
     Updatecookies()
     GetJsonDataWithCookies()
 
-#配置日志记录功能
-public.recordlogging()
-
-#开始执行发送程序
-try:
-    #以下为定时任务的代码
-    sched = BlockingScheduler()
-    #通过add_job来添加作业
-    sched.add_job(begintocheck, 'interval', hours=1)  # 每隔一个小时抓运行一次
-    sched.start()
-except Exception as e:
-    if e != KeyboardInterrupt:
-        logging.debug("运行定时任务发生错误")
 
 
+#以下为定时任务的代码
+# sched = BlockingScheduler()
+# #通过add_job来添加作业
+# sched.add_job(begintocheck, 'interval', hours=1)  # 每隔一个小时运行一次,如果整个过程抓取完毕之后则直接终止此程序
+# sched.start()
 
+
+begintocheck()
 
 
 

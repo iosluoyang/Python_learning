@@ -17,19 +17,24 @@ from Crypto.Cipher import AES
 import base64
 import requests
 import re
-import time
+import json
+import public
+import random
 
 
 
 # 头部信息
 headers = {
-    'Host':"music.163.com",
-    'Accept-Language':"zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
-    'Accept-Encoding':"gzip, deflate",
-    'Content-Type':"application/x-www-form-urlencoded",
-    'Cookie':"_ntes_nnid=754361b04b121e078dee797cdb30e0fd,1486026808627; _ntes_nuid=754361b04b121e078dee797cdb30e0fd; JSESSIONID-WYYY=yfqt9ofhY%5CIYNkXW71TqY5OtSZyjE%2FoswGgtl4dMv3Oa7%5CQ50T%2FVaee%2FMSsCifHE0TGtRMYhSPpr20i%5CRO%2BO%2B9pbbJnrUvGzkibhNqw3Tlgn%5Coil%2FrW7zFZZWSA3K9gD77MPSVH6fnv5hIT8ms70MNB3CxK5r3ecj3tFMlWFbFOZmGw%5C%3A1490677541180; _iuqxldmzr_=32; vjuids=c8ca7976.15a029d006a.0.51373751e63af8; vjlast=1486102528.1490172479.21; __gads=ID=a9eed5e3cae4d252:T=1486102537:S=ALNI_Mb5XX2vlkjsiU5cIy91-ToUDoFxIw; vinfo_n_f_l_n3=411a2def7f75a62e.1.1.1486349441669.1486349607905.1490173828142; P_INFO=m15527594439@163.com|1489375076|1|study|00&99|null&null&null#hub&420100#10#0#0|155439&1|study_client|15527594439@163.com; NTES_CMT_USER_INFO=84794134%7Cm155****4439%7Chttps%3A%2F%2Fsimg.ws.126.net%2Fe%2Fimg5.cache.netease.com%2Ftie%2Fimages%2Fyun%2Fphoto_default_62.png.39x39.100.jpg%7Cfalse%7CbTE1NTI3NTk0NDM5QDE2My5jb20%3D; usertrack=c+5+hljHgU0T1FDmA66MAg==; Province=027; City=027; _ga=GA1.2.1549851014.1489469781; __utma=94650624.1549851014.1489469781.1490664577.1490672820.8; __utmc=94650624; __utmz=94650624.1490661822.6.2.utmcsr=baidu|utmccn=(organic)|utmcmd=organic; playerid=81568911; __utmb=94650624.23.10.1490672820",
-    'Connection':"keep-alive",
-    'Referer':'http://music.163.com/'
+    # 'Host':"music.163.com",
+    # 'Accept-Language':"zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3",
+    # 'Accept-Encoding':"gzip, deflate",
+    # 'Content-Type':"application/x-www-form-urlencoded",
+    # 'Cookie':"_ntes_nnid=754361b04b121e078dee797cdb30e0fd,1486026808627; _ntes_nuid=754361b04b121e078dee797cdb30e0fd; JSESSIONID-WYYY=yfqt9ofhY%5CIYNkXW71TqY5OtSZyjE%2FoswGgtl4dMv3Oa7%5CQ50T%2FVaee%2FMSsCifHE0TGtRMYhSPpr20i%5CRO%2BO%2B9pbbJnrUvGzkibhNqw3Tlgn%5Coil%2FrW7zFZZWSA3K9gD77MPSVH6fnv5hIT8ms70MNB3CxK5r3ecj3tFMlWFbFOZmGw%5C%3A1490677541180; _iuqxldmzr_=32; vjuids=c8ca7976.15a029d006a.0.51373751e63af8; vjlast=1486102528.1490172479.21; __gads=ID=a9eed5e3cae4d252:T=1486102537:S=ALNI_Mb5XX2vlkjsiU5cIy91-ToUDoFxIw; vinfo_n_f_l_n3=411a2def7f75a62e.1.1.1486349441669.1486349607905.1490173828142; P_INFO=m15527594439@163.com|1489375076|1|study|00&99|null&null&null#hub&420100#10#0#0|155439&1|study_client|15527594439@163.com; NTES_CMT_USER_INFO=84794134%7Cm155****4439%7Chttps%3A%2F%2Fsimg.ws.126.net%2Fe%2Fimg5.cache.netease.com%2Ftie%2Fimages%2Fyun%2Fphoto_default_62.png.39x39.100.jpg%7Cfalse%7CbTE1NTI3NTk0NDM5QDE2My5jb20%3D; usertrack=c+5+hljHgU0T1FDmA66MAg==; Province=027; City=027; _ga=GA1.2.1549851014.1489469781; __utma=94650624.1549851014.1489469781.1490664577.1490672820.8; __utmc=94650624; __utmz=94650624.1490661822.6.2.utmcsr=baidu|utmccn=(organic)|utmcmd=organic; playerid=81568911; __utmb=94650624.23.10.1490672820",
+    # 'Connection':"keep-alive",
+    # 'Referer':'http://music.163.com/'
+    'Cookie': 'appver=2.0.2',
+    'Referer': 'http://music.163.com/',
+    'User-Agent':random.choice(public.User_Agent_List)
 }
 
 # 设置代理服务器
@@ -99,8 +104,7 @@ def get_encSecKey():
 
 
 
-
-# 获取热门歌手列表相应的json数据
+# 通过API接口直接获取热门歌手列表相应的json数据
 def get_hotartistsjson(page):
 
     url = "http://music.163.com/weapi/artist/top?csrf_token="
@@ -110,19 +114,20 @@ def get_hotartistsjson(page):
     }
 
     response = requests.post(url, headers=headers, data=data,proxies = proxies)
+
     return response.content
 
 
-# 获取专辑列表相应的json数据
-def get_ablumsjson(artistid,limitnum):
+# 获取专辑列表对应的网页信息
+def get_ablumsjson(artistid,offset):
 
-    url = "http://music.163.com/artist/album"
-    params = {'id': artistid, 'limit': str(limitnum)}
+    url = "http://music.163.com/artist/album?id=" + str(artistid)
+    params = {'limit': '12','offset':str(offset)} #专辑默认的每页请求数量为12个 offset为12的倍数,代表第几页的专辑
     response = requests.get(url,headers = headers,params = params,proxies = proxies)
     return response.content.decode()
 
 
-# 获取歌曲列表相应的json数据
+# 获取歌曲列表相应的网页信息
 def get_songsjson(album_id):
 
     url = "http://music.163.com/album"
@@ -131,7 +136,7 @@ def get_songsjson(album_id):
     return response.content.decode()
 
 
-# 获得评论相应的json数据
+# 通过API接口直接获得评论相应的json数据
 def get_commentsjson(url,page):
     data = {
          "params": get_params(page),#根据页数的不同构造不同的参数
@@ -140,15 +145,21 @@ def get_commentsjson(url,page):
 
     #容错:
     try:
-        response = requests.post(url, headers=headers, data=data, proxies=proxies)
+        response = requests.post(url, headers=headers, data=data,proxies = proxies)
 
     except:
         print ('获取评论数据Json发生异常')
         return  None
 
     else:
-        print ('获取评论数据Json成功')
-        return response.content
+        #判断Json状态码是否是-460,如果是-460的话代表是获取失败,则直接返回None即可
+        if (json.loads(response.content)['code'] == -460):
+            print ('靠!被网易云发现是爬虫了,返回数据为None')
+            return None
+        else:
+            print ('获取评论数据Json成功')
+            return response.content
+
 
 
 

@@ -36,13 +36,18 @@ class SendMailClass():
     #发送邮件 注意此处必选参数必须在前，有默认值的参数在后
     # 注意,发送邮件时如果需要正文中包含图片,则应该在正文内容中加入类似于这样的代码<img src='cid:image<index>'>放置到合适的位置 index从0开始
     # index代表该图片在emailimgArr中的索引，因为email中图片需要在正文中找到对应的cid,所以一定要严格按照顺序进行添加,否则图片会显示不出来
-    def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',toNickname='嗨我亲爱的你',emailsubject='这是一封你点了就会后悔的信',emailfooter='——小海哥倾情奉献',emailbodybgimg=""):
+    def sendmail(self,toaddressarr,emailtextcontent,emailimgArr=[],emaillocalfiles=[],fromNickname='小海哥',emailsubject='小海哥驾到',emailfooter='——小海哥倾情奉献',emailbodybgimg=""):
         fromaddress = 'ioslhy@163.com'  #发件人地址
         frompwd = 'wyhhsh1993'  #发件人密码 163邮箱密码 wyhhsh1993 QQ邮箱密码：abnuwxtwoobhbfjj
         fromsmtpserver = 'smtp.163.com'  #SMTP服务器地址 163邮箱SMTP服务器为smtp.163.com QQ SMTP服务器为 smtp.qq.com
-        to_addrs = toaddressarr     #收件人邮箱数组
+        to_addrs = toaddressarr     #收件人邮箱数组 包含收件地址和收件人昵称的字典 [{"nickname":"昵称","address":"xxxx@qq.om"}]
+        #将收件人邮件数组中的每一个字典进行解析，拆分为昵称数组和地址数组
+        to_nicksname = []
+        to_addresses = []
+        for dict in to_addrs:
+            to_nicksname.append('%s<%s>' %(dict["nickname"],dict["address"]))
+            to_addresses.append(dict["address"])
         fromnickname = fromNickname     #发件人昵称
-        tonickname = toNickname     #收件人昵称
         subject = emailsubject  #邮件主题
         textcontent = emailtextcontent  #邮件文本内容
         imgUrlArr = emailimgArr     #邮件正文中要显示的图片链接或者本地图片路径
@@ -54,9 +59,14 @@ class SendMailClass():
 
         #构建邮件内容
         msg = MIMEMultipart('related')
-        msg['From'] = _format_addr('%s:%s' %(fromnickname,fromaddress))
-        msg['To'] = _format_addr('%s' %(tonickname))
+        msg["Accept-Language"] = "zh-CN"
+        msg["Accept-Charset"] = "ISO-8859-1,utf-8"
+
+        msg['From'] = _format_addr('%s<%s>' % (fromnickname, fromaddress))
+
+        msg['To'] = _format_addr('%s' % ','.join(to_nicksname))
         msg['Subject'] = Header(subject,'utf-8').encode()
+
 
 
         contentheader = "" #后面需要增加到正文中的body背景图片字符串
@@ -133,17 +143,18 @@ class SendMailClass():
         totalcontent = contentheader + contenttext  + contentlogoname + contentfooter
         msg.attach(MIMEText(totalcontent,'html','utf-8'))
 
+
         #发送邮件
         server = smtplib.SMTP(fromsmtpserver,25) #163邮箱端口号为25 QQ端口号为465
         server.login(fromaddress,frompwd)
-        server.sendmail(fromaddress,to_addrs,msg.as_string())
+        server.sendmail(fromaddress,to_addresses,msg.as_string())
         server.quit()
 
 
 #格式化邮件地址
 def _format_addr(s):
     name, addr = parseaddr(s)
-    return formataddr((Header(name, 'utf-8').encode(), addr))
+    return formataddr((Header(name, 'utf-8').encode(),addr.encode('utf-8') if isinstance(addr, unicode) else addr))
 
 
 
