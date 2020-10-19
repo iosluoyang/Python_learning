@@ -12,7 +12,7 @@ parser.add_argument('--height', type = int, default = 80) #输出字符画高
 #获取参数
 args = parser.parse_args()
 
-IMG = 'picdemo.png'
+IMG = 'picdemo1.png'
 WIDTH = args.width
 HEIGHT = args.height
 OUTPUT = args.output
@@ -51,5 +51,5 @@ if __name__ == '__main__':
         with open(OUTPUT,'w') as f:
             f.write(txt)
     else:
-        with open("/Users/HelloWorld/Documents/个人相关/TobeBetterMe/Python学习进程/Python图片转字符画/output.txt",'w') as f:
+        with open("output.txt",'w') as f:
             f.write(txt)

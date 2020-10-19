@@ -27,7 +27,7 @@ homeresponse = session.get(homeurl,headers = headers,proxies = proxies)
 #使用bs4进行解析
 homesoup = BeautifulSoup(homeresponse.text,'html.parser')
 #找到xsrf元素element
-xsrfinput = homesoup.find('input',{'name':'_xsrf'})
+xsrfinput = homesoup.find('input',{'name':'username'})
 xsrf_token = xsrfinput['value']
 print('获取到的登录参数xsrf_token的值为:' , xsrf_token)
 
