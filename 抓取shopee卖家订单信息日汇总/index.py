@@ -18,17 +18,16 @@ import json
 shopeeaccount = '0955511464'
 shopeepwd = 'N3184520eung'
 
-driver = webdriver.Chrome()
+driver = None
 logincookiesPath = '/Users/HelloWorld/Desktop/login-shopeecookies.json'
 # targetUrl = 'https://seller.th.shopee.cn'
 targetUrl = 'https://seller.th.shopee.cn/portal/sale?type=shipping'
 
-# 所有的订单数据链接集合
-allOrderLinkArr = []
-
 
 # 打开链接
 def opentargetUrl():
+
+    driver = webdriver.Chrome()
 
     # 添加谷歌浏览器的启动配置
 
@@ -48,7 +47,7 @@ def opentargetUrl():
     driver.get(targetUrl)
 
 # 操作跳转目标页面
-def gototargetPage():
+def getallOrders():
 
     # # 获取我的订单元素并点击
     # try:
@@ -82,6 +81,7 @@ def gototargetPage():
     #
 
     # 直到页面有分页器则说明数据加载完毕了
+
     try:
         paginationel =  WebDriverWait(driver, 100).until(
             EC.presence_of_element_located((By.CSS_SELECTOR,
@@ -104,18 +104,19 @@ def gototargetPage():
         # 每一页的订单列表数据
         orderlistels = []
 
-        # 不止一页的情况下将页面滑到底部
+        # 超过一页的情况下将页面滑到底部
         if(pageindex > 0):
 
             # 将该页面从上滑到下
             driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
             # 停留1秒钟
             sleep(1)
-            # 再将页面从下滑到上
-            # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
 
             # 点击该页的分页元素
             eachpageel.click()
+
+            # 再将页面从下滑到上
+            # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
 
             # 直到页面有分页器则说明数据加载完毕了
             try:
@@ -137,28 +138,28 @@ def gototargetPage():
                 EC.presence_of_all_elements_located((By.CSS_SELECTOR,
                 '.new-order-list .order-list-pannel .order-list-section .order-list-body a.order-item'))
             )
-            print ('获取第{page}页订单信息元素成功'.format(page=pageindex))
 
             # 在此将该页数据需要的信息提取出来 否则在后面针对该元素无法进行数据获取
 
             # 遍历订单列表 获取订单相关信息
             for (index, eachorderitemel) in enumerate(orderlistels):
-                # 获取对应的订单相关信息
+                # 获取元素对应的订单相关信息
 
                 # 订单号
                 orderNum = eachorderitemel.find_element_by_css_selector(
                     '.order-title .orderid'
                 ).get_attribute('innerHTML').split(';')[1]
-                print ('该订单的订单号为:{orderNum}'.format(orderNum=orderNum))
+
+                # print ('该订单的订单号为:{orderNum}'.format(orderNum=orderNum))
 
                 # 物流方式
                 shippingWay = eachorderitemel.find_element_by_css_selector(
-                    '.order-list-item .body .item-channel .carrier-name').text
-                print ('该订单的运送方式为:{shippingWay}'.format(shippingWay=shippingWay))
+                    '.order-list-item .carrier-name').text
+                # print ('该订单的运送方式为:{shippingWay}'.format(shippingWay=shippingWay))
 
                 # 订单详情链接
                 orderLink = eachorderitemel.get_attribute('href')
-                print ('该订单的详情链接为:{orderLink}'.format(orderLink=orderLink))
+                # print ('该订单的详情链接为:{orderLink}'.format(orderLink=orderLink))
 
                 orderdata = {
                     "orderNum": orderNum,
@@ -168,56 +169,103 @@ def gototargetPage():
 
                 allorderArr.append(orderdata)
 
+            print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex,totalPage=len(totalPages)))
+
 
         except ValueError as e:
             print ('获取第{page}页订单信息元素失败'.format(page=pageindex))
 
-        finally:
-            print ('获取第{page}页订单信息元素为:'.format(page=pageindex))
-            print (orderlistels)
-
     # 获取所有的订单数据完毕
     print ('共计获取了{num}个订单数据'.format(num=len(allorderArr)))
-    print allorderArr
+    # print allorderArr
 
+    # 如果对数据进行过滤筛选则在这里进行
+    #------------------------------
 
+    # 遍历过滤后的订单数据
+    for(orderindex, eachorderdata) in enumerate(allorderArr):
+        print ('正在查看第{orderindex}/{totalnum}'.format(orderindex=orderindex+1,totalnum=len(allorderArr)))
+        ifopennewwindow = orderindex == 0 # 是否打开新窗口 只有第一个订单才打开
 
+        # 模拟只获取第一个订单数据
+        if orderindex == 0:
+            gotoorderdetailPage(eachorderdata['orderLink'], ifopennewwindow)
 
 # 打开每一个订单信息
-def gotoorderdetailPage(link):
+def gotoorderdetailPage(link, ifopennewwindow):
 
-    js = 'window.open("'+link+'");'
-    driver.execute_script(js)
+    # 根据是否需要打开新窗口来做不同情况的处理
 
-    # 输出当前窗口句柄
-    homepage_handle = driver.current_window_handle
+    # 需要打开新窗口
+    if ifopennewwindow:
 
-    # 获取当前窗口句柄集合（列表类型）
-    handles = driver.window_handles
-    print(handles)  # 输出句柄集合
+        js = 'window.open("' + link + '");'
+        driver.execute_script(js)
 
-    # 获取订单详情的窗口
-    orderdetail_handle = None
-    for handle in handles:
-        if handle != homepage_handle:
-            orderdetail_handle = handle
+        # 输出当前窗口句柄
+        current_handle = driver.current_window_handle
 
-    # 输出当前窗口句柄（订单详情窗口）
-    print('switch to ', orderdetail_handle)
-    driver.switch_to.window(orderdetail_handle)
+        # 获取当前窗口句柄集合（列表类型）
+        handles = driver.window_handles
+        # print(handles)  # 输出句柄集合
+
+        # 获取新窗口的句柄
+        orderdetail_handle = None
+        for handle in handles:
+            if handle != current_handle:
+                orderdetail_handle = handle
+                break
+
+        # 输出当前窗口句柄（订单详情窗口）
+        # print('switch to ', orderdetail_handle)
+        # 切换到订单详情页的窗口中
+        driver.switch_to.window(orderdetail_handle)
+
+    # 不需要打开新窗口
+    driver.get(link)
+
+    # 开始获取订单详情页的内容
+    try:
+        orderDetailel = WebDriverWait(driver, 100).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,''
+                '.fulfillment-order .order-detail'
+            ))
+        )
+    except ValueError as e:
+        print ('获取订单详情元素失败' + e)
+
+    finally:
+        print ('获取到订单详情元素:')
+        # print (orderDetailel)
+        # 将该页面从上滑到下
+        driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
+        # 等待1秒
+        sleep(1)
 
 
 
-    # 模拟进行数据的获取
-    # 等待5秒钟
-    sleep(5)
-    ordertailsoup = BeautifulSoup(driver.page_source,'lxml').prettify()
+    # 获取订单详情数据的元素内容
+    detailHtml = orderDetailel.get_attribute('innerHTML')
+
+    # 进行订单数据的获取
+    ordertailsoup = BeautifulSoup(detailHtml,'lxml').prettify()
     print ordertailsoup
 
-    driver.close()  # 关闭当前窗口（订单详情）
+    # driver.close()  # 关闭当前窗口（订单详情）
 
     # 切换回主页窗口
-    driver.switch_to.window(homepage_handle)
+    # driver.switch_to.window(current_handle)
+
+
+
+# 获取订单详情数据
+def getOrderDetailData(htmlcontent):
+
+    # 加载模拟数据
+    with open('/Users/HelloWorld/Desktop/htmlcontentDemo.html', 'r') as f:
+        htmlcontent = f.read()
+
+
 
 
 
@@ -261,6 +309,9 @@ def gotoorderdetailPage(link):
 
 
 if __name__ == "__main__":
-   opentargetUrl()
-   gototargetPage()
+   # opentargetUrl() # 打开目标页面
+   # getallOrders() # 获取所有订单数据
+
+   # 获取订单详情的相关数据
+   getOrderDetailData(None)
 
