@@ -222,7 +222,8 @@ def gotoorderdetailPage(link, ifopennewwindow):
         driver.switch_to.window(orderdetail_handle)
 
     # 不需要打开新窗口
-    driver.get(link)
+    else:
+        driver.get(link)
 
     # 开始获取订单详情页的内容
     try:
@@ -247,9 +248,11 @@ def gotoorderdetailPage(link, ifopennewwindow):
     # 获取订单详情数据的元素内容
     detailHtml = orderDetailel.get_attribute('innerHTML')
 
-    # 进行订单数据的获取
-    ordertailsoup = BeautifulSoup(detailHtml,'lxml').prettify()
-    print ordertailsoup
+    # 解析页面内容获取对应的数据
+    getOrderDetailData(detailHtml)
+
+
+
 
     # driver.close()  # 关闭当前窗口（订单详情）
 
@@ -261,13 +264,32 @@ def gotoorderdetailPage(link, ifopennewwindow):
 # 获取订单详情数据
 def getOrderDetailData(htmlcontent):
 
+
     # 加载模拟数据
-    with open('/Users/HelloWorld/Desktop/htmlcontentDemo.html', 'r') as f:
+    with open('/Users/HelloWorld/Desktop/htmlcontentDemo.html','r') as f:
         htmlcontent = f.read()
+    soup = BeautifulSoup(htmlcontent, 'lxml')
 
+    # 订单编号
+    orderNum = soup.select('.od-shippin .id .detail')[0].get_text().strip()
+    print orderNum
 
+    # 物流方式
+    shippingWay = soup.select('.od-shippin .logistic-history-log .carrier')[0].get_text().strip()
+    print shippingWay
 
+    # 买家名称
+    buyerName = soup.select('.user-view-item .username')[0].get_text().strip()
+    print buyerName
 
+    # 商品数组
+    productList = soup.select('.product-list .product-list-item .product-item')
+    for eachproduct in productList:
+        print eachproduct.contents
+        # productImg = eachproduct.find('.product-image').get_text().strip()
+        # print productImg
+        # productName = eachproduct.find('.product-item .product-name').get_text().strip()
+        # print productName
 
 # try:
 #     signinform = WebDriverWait(driver, 10).until(
