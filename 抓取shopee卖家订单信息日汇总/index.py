@@ -12,11 +12,16 @@ from bs4 import BeautifulSoup
 
 
 from time import sleep
-
+import re
 import json
+import xlwt
+from datetime import datetime
 
 shopeeaccount = '0955511464'
 shopeepwd = 'N3184520eung'
+
+stopOrderNum = ''
+excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalCommissionFee','totalShippingFee','totalOrderPrice','totalCost']
 
 driver = None
 logincookiesPath = '/Users/HelloWorld/Desktop/login-shopeecookies.json'
@@ -27,6 +32,7 @@ targetUrl = 'https://seller.th.shopee.cn/portal/sale?type=shipping'
 # 打开链接
 def opentargetUrl():
 
+    global driver #注意这里的driver要进行全局变量的声明
     driver = webdriver.Chrome()
 
     # 添加谷歌浏览器的启动配置
@@ -37,7 +43,6 @@ def opentargetUrl():
 
     # 然后再增加cookies
     driver.delete_all_cookies()
-    dict_cookies = {}
     with open(logincookiesPath, 'r') as f:
         list_cookies = json.loads(f.read())
 
@@ -46,8 +51,9 @@ def opentargetUrl():
 
     driver.get(targetUrl)
 
-# 操作跳转目标页面
-def getallOrders():
+
+# 获取所有的订单列表
+def getallorderList():
 
     # # 获取我的订单元素并点击
     # try:
@@ -91,18 +97,16 @@ def getallOrders():
         print ('获取分页元素失败' + e)
 
     finally:
-        print ('获取分页元素:')
+        print ('获取到分页元素:')
         print (paginationel)
 
+
     # 所有的订单元素集合
-    allorderArr = []
+    allorderListArr = []
 
     # 获取总共有几页
     totalPages = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')
     for (pageindex, eachpageel) in enumerate(totalPages):
-
-        # 每一页的订单列表数据
-        orderlistels = []
 
         # 超过一页的情况下将页面滑到底部
         if(pageindex > 0):
@@ -148,53 +152,118 @@ def getallOrders():
                 # 订单号
                 orderNum = eachorderitemel.find_element_by_css_selector(
                     '.order-title .orderid'
-                ).get_attribute('innerHTML').split(';')[1]
-
+                ).get_attribute('innerHTML').split(';')[1].encode("utf-8")
                 # print ('该订单的订单号为:{orderNum}'.format(orderNum=orderNum))
+
+                # 买家名称
+                buyerName = eachorderitemel.find_element_by_css_selector(
+                    '.order-title .title-prefix .user-header .username'
+                ).text.encode("utf-8")
+                # print ('该订单的买家名称为:{buyerName}'.format(buyerName=buyerName))
 
                 # 物流方式
                 shippingWay = eachorderitemel.find_element_by_css_selector(
-                    '.order-list-item .carrier-name').text
+                    '.order-list-item .carrier-name'
+                ).text.encode("utf-8")
                 # print ('该订单的运送方式为:{shippingWay}'.format(shippingWay=shippingWay))
 
                 # 订单详情链接
-                orderLink = eachorderitemel.get_attribute('href')
+                orderLink = eachorderitemel.get_attribute('href').encode("utf-8")
                 # print ('该订单的详情链接为:{orderLink}'.format(orderLink=orderLink))
 
                 orderdata = {
                     "orderNum": orderNum,
+                    "buyerName": buyerName,
                     "shippingWay": shippingWay,
                     "orderLink": orderLink
                 }
 
-                allorderArr.append(orderdata)
+                allorderListArr.append(orderdata)
 
-            print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex,totalPage=len(totalPages)))
+            print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex+1,totalPage=len(totalPages)))
 
 
         except ValueError as e:
-            print ('获取第{page}页订单信息元素失败'.format(page=pageindex))
+            print ('获取第{page}页订单信息元素失败'.format(page=pageindex+1))
+
+    sleep(1)
+    # 获取完之后点击回到第一页
+    firstPaginationel = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')[0]
+    firstPaginationel.click()
+    # 然后滚动到最顶部
+    driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
+
 
     # 获取所有的订单数据完毕
-    print ('共计获取了{num}个订单数据'.format(num=len(allorderArr)))
-    # print allorderArr
+    print ('共计获取了{num}个订单数据'.format(num=len(allorderListArr)))
+    # print allorderListArr
+
+    # print json.dumps(allorderListArr, sort_keys=True, indent=2)
+
+    # 等待用户输入即将截断的订单号
+    global stopOrderNum
+    stopOrderNum = raw_input('Please enter the Order Number you want to collect to:\n')
 
     # 如果对数据进行过滤筛选则在这里进行
     #------------------------------
 
-    # 遍历过滤后的订单数据
-    for(orderindex, eachorderdata) in enumerate(allorderArr):
-        print ('正在查看第{orderindex}/{totalnum}'.format(orderindex=orderindex+1,totalnum=len(allorderArr)))
-        ifopennewwindow = orderindex == 0 # 是否打开新窗口 只有第一个订单才打开
+    # 例如获取前3个订单集合或者获取第一个特定的物流公司的订单
+    # 判断是否有停止采集的订单号 如果有的话则取该订单号之前的订单集合 否则不进行过滤 默认所有订单
+    filterAllOrderListArr = []
+    if stopOrderNum is not None:
+        for eachorder in allorderListArr:
+            filterAllOrderListArr.append(eachorder)
+            if(stopOrderNum in eachorder['orderNum']):
+                break
 
-        # 模拟只获取第一个订单数据
-        if orderindex == 0:
-            gotoorderdetailPage(eachorderdata['orderLink'], ifopennewwindow)
+    else:
+        filterAllOrderListArr = allorderListArr
 
-# 打开每一个订单信息
-def gotoorderdetailPage(link, ifopennewwindow):
+    # 将过滤后的订单列表数据返回
+    print ('开始查看{num}个订单数据'.format(num=len(filterAllOrderListArr)))
+    return  filterAllOrderListArr
+
+
+# 根据订单列表数据获取对应的订单详情数据的集合
+def getOrderInfoListbyOrderList(orderList):
+
+    orderInfoList = []
+
+    ifopennewwindow = True  # 是否打开新窗口 默认为true
+
+    # 遍历订单列表
+    for (orderindex, eachorderdata) in enumerate(orderList):
+
+
+        try:
+            # 获取订单详情页面内容
+            orderDetailHtml = getOrderDetailPageContent(eachorderdata['orderLink'], ifopennewwindow)
+
+            ifopennewwindow = False  # 将是否打开新的浏览器设置为false
+
+            # 解析详情页面内容获取对应的数据
+            orderInfo = getOrderInfo(orderDetailHtml)
+
+            orderInfoList.append(orderInfo)
+
+        except ValueError as e:
+            print ('第{orderindex}/{totalnum}个订单查看失败'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
+
+        finally:
+            print ('第{orderindex}/{totalnum}个订单查看完成'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
+
+
+    print '获取到的订单详情列表数据为:'
+    print json.dumps(orderInfoList)
+
+    return orderInfoList
+
+
+# 获取订单详情页面内容
+def getOrderDetailPageContent(link, ifopennewwindow):
 
     # 根据是否需要打开新窗口来做不同情况的处理
+    global driver
 
     # 需要打开新窗口
     if ifopennewwindow:
@@ -227,32 +296,28 @@ def gotoorderdetailPage(link, ifopennewwindow):
 
     # 开始获取订单详情页的内容
     try:
-        orderDetailel = WebDriverWait(driver, 100).until(
+        productListel = WebDriverWait(driver, 100).until(
             EC.presence_of_element_located((By.CSS_SELECTOR,''
-                '.fulfillment-order .order-detail'
+                '.fulfillment-order .order-detail .product-list'
             ))
         )
     except ValueError as e:
-        print ('获取订单详情元素失败' + e)
+        print ('获取订单详情商品列表元素失败' + e)
 
     finally:
-        print ('获取到订单详情元素:')
-        # print (orderDetailel)
+        print ('获取到订单详情商品列表元素:')
+        # print (productListel)
         # 将该页面从上滑到下
         driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
         # 等待1秒
         sleep(1)
 
 
-
     # 获取订单详情数据的元素内容
+    orderDetailel = driver.find_element_by_css_selector('.fulfillment-order .order-detail')
     detailHtml = orderDetailel.get_attribute('innerHTML')
 
-    # 解析页面内容获取对应的数据
-    getOrderDetailData(detailHtml)
-
-
-
+    return detailHtml
 
     # driver.close()  # 关闭当前窗口（订单详情）
 
@@ -260,36 +325,315 @@ def gotoorderdetailPage(link, ifopennewwindow):
     # driver.switch_to.window(current_handle)
 
 
-
 # 获取订单详情数据
-def getOrderDetailData(htmlcontent):
+def getOrderInfo(htmlcontent):
 
-
-    # 加载模拟数据
-    with open('/Users/HelloWorld/Desktop/htmlcontentDemo.html','r') as f:
-        htmlcontent = f.read()
     soup = BeautifulSoup(htmlcontent, 'lxml')
 
     # 订单编号
-    orderNum = soup.select('.od-shippin .id .detail')[0].get_text().strip()
-    print orderNum
+    orderNum = soup.select('.od-shippin .id .detail')[0].text.strip().encode("utf-8")
+    # print orderNum
 
     # 物流方式
-    shippingWay = soup.select('.od-shippin .logistic-history-log .carrier')[0].get_text().strip()
-    print shippingWay
+    shippingWay = soup.select('.od-shippin .logistic-history-log .carrier')[0].text.strip().encode("utf-8")
+    # print shippingWay
 
     # 买家名称
-    buyerName = soup.select('.user-view-item .username')[0].get_text().strip()
-    print buyerName
+    buyerName = soup.select('.user-view-item .username')[0].text.strip().encode("utf-8")
+    # print buyerName
 
-    # 商品数组
-    productList = soup.select('.product-list .product-list-item .product-item')
-    for eachproduct in productList:
-        print eachproduct.contents
-        # productImg = eachproduct.find('.product-image').get_text().strip()
+    # 商品数组对象
+    productList = []
+    productelList = soup.select('.product-list')[0].select('[class=product-list-item]')
+    for eachproduct in productelList:
+
+        # 商品图片
+        productImgStr = eachproduct.select('.product-item .product-image')[0].attrs['style']
+        productImg = re.findall(r'"(.*?)"', productImgStr)[0]
         # print productImg
-        # productName = eachproduct.find('.product-item .product-name').get_text().strip()
+
+        # 商品名称
+        productName = eachproduct.select('.product-item .product-detail .product-name')[0].text.strip().encode("utf-8")
         # print productName
+
+        # 商品规格 可能会不存在规格元素
+        productSpec = ""
+
+        productSpecEl = eachproduct.select('.product-item .product-detail .product-meta div')
+        if productSpecEl is None:
+            productSpec = productSpecEl[0].text.strip().split(':')[1].encode("utf-8")
+        # print productSpec
+
+        # 商品单价
+        productPrice = eachproduct.select('.price')[0].text.strip().encode("utf-8")
+        # print productPrice
+
+        # 商品数量
+        productAmount = eachproduct.select('.qty')[0].text.strip().encode("utf-8")
+        # print productAmount
+
+        # 商品总价
+        productTotalPrice = eachproduct.select('.subtotal')[0].text.strip().encode("utf-8")
+        # print productTotalPrice
+
+        productInfo = {
+            "productImg": productImg,
+            "productName": productName,
+            "productSpec": productSpec,
+            "productPrice": productPrice,
+            "productAmount": productAmount,
+            "productTotalPrice": productTotalPrice
+        }
+
+        productList.append(productInfo)
+
+    # print productList
+
+    # 订单费用相关
+    orderPaymentEl = soup.select('.payment-info-details')[0]
+
+    # 订单总成本
+    totalCost = orderPaymentEl.select('.income-item.income-subtotal .income-value')[0].text.strip().encode("utf-8")
+    totalCost = filter(str.isdigit,totalCost)
+    # print totalCost
+
+    # 总运输费用
+    totalShippingFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[1].text.strip().encode("utf-8")
+    totalShippingFee = filter(str.isdigit, totalShippingFee)
+    # print totalShippingFee
+
+    # 总平台补贴
+    totalCommissionFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[2].text.strip().encode("utf-8")
+    totalCommissionFee = filter(str.isdigit, totalCommissionFee)
+    # print totalCommissionFee
+
+    # 总实付金额
+    totalOrderPrice = orderPaymentEl.select('.income-item.income-subtotal.total .income-value')[0].text.strip().encode("utf-8")
+    totalOrderPrice = filter(str.isdigit, totalOrderPrice)
+    # print totalOrderPrice
+
+    # 结束订单信息的搜集
+    # 开始组装数据
+
+    orderInfo = {
+
+        "orderNum":orderNum, # 订单编号
+        "shippingWay": shippingWay, # 物流方式
+        "buyerName": buyerName, # 买家名称
+        "productList": productList, #订单商品列表
+        "totalCost": totalCost, # 订单总成本
+        "totalShippingFee": totalShippingFee, # 订单总物流费用
+        "totalCommissionFee": totalCommissionFee, # 订单总平台服务费
+        "totalOrderPrice": totalOrderPrice, # 订单实付金额
+
+    }
+
+    # print orderInfo
+
+    return orderInfo
+
+
+# 开始将订单详情列表数据写入excel表格中
+def writetoExcelbyOrderInfoList(orderinfolist):
+
+    # 创建工作簿
+    workbook = xlwt.Workbook(encoding='utf-8')
+    # 创建sheet 取当前的日期为sheet名称
+    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+    myordersheet = workbook.add_sheet(sheetname, cell_overwrite_ok=True)
+
+    # 表格样式
+    headerfont = xlwt.Font()  # 为样式创建字体
+    headerfont.name = 'Times New Roman'
+    headerfont.bold = True  # 黑体
+    headerfont.height = 22 * 11 # 字体大小
+    headerfont.underline = False  # 下划线
+    headerfont.italic = False  # 斜体字
+
+    headeralignment = xlwt.Alignment()  # Create Alignment
+    headeralignment.horz = xlwt.Alignment.HORZ_CENTER  # May be: HORZ_GENERAL, HORZ_LEFT, HORZ_CENTER, HORZ_RIGHT, HORZ_FILLED, HORZ_JUSTIFIED, HORZ_CENTER_ACROSS_SEL, HORZ_DISTRIBUTED
+    headeralignment.vert = xlwt.Alignment.VERT_CENTER  # May be: VERT_TOP, VERT_CENTER, VERT_BOTTOM, VERT_JUSTIFIED, VERT_DISTRIBUTED
+
+    headerstyle = xlwt.XFStyle()  # 初始化样式
+    headerstyle.font = headerfont  # 设定样式
+    headerstyle.alignment = headeralignment
+    # 遍历数据写入要存储的数据
+
+    startrowindex = 1
+    headerkeyArr = []
+
+    for rowindex,eachdatadic in enumerate(orderinfolist):
+
+        # 根据筛选数组过滤对应的写入数据
+        for colindex, datakey in enumerate(eachdatadic.keys()):
+            if not datakey in excelFileKeyArr:
+                del eachdatadic[datakey]
+            elif rowindex == 0:
+                headerkeyArr.append(datakey)
+
+
+        # 开始写入数据
+        for colindex,datakey in enumerate(eachdatadic.keys()):
+
+            # 设置列宽 字数 * 256
+            myordersheet.col(colindex).width = 30 * 256
+
+            datavalue = eachdatadic[datakey]
+
+            try:
+                # 写入数据
+                # 看是否是字符串
+                # 如果是字符串则直接写入
+                if isinstance(datavalue, str):
+                    myordersheet.write(startrowindex, colindex, datavalue)
+
+                # 如果是数组则遍历数组进行写入
+                if isinstance(datavalue, list):
+                    for (productindex, eachproduct) in enumerate(datavalue):
+
+                        productName = eachproduct['productName']
+
+                        myordersheet.write(startrowindex, colindex, productName)
+
+                        # # 合并单元格，合并第2行到第4行的第4列到第5列
+                        # myordersheet.write_merge(2, 4, 4, 5, u'合并')
+
+                        # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会加
+                        if not len(datavalue) == 1 and not productindex == len(datavalue) - 1:
+                            startrowindex = startrowindex + 1
+
+                # 打印
+                print ('写入第{num}/{totalnum}条数据成功'.format(num=rowindex,totalnum=len(orderinfolist)))
+            except ValueError as e:
+                print ('写入数据失败{error}'.format(error=e))
+
+        startrowindex = startrowindex + 1
+
+
+    # 最后写入表头
+    try:
+        for headerindex, headername in enumerate(headerkeyArr):
+            myordersheet.write(0, headerindex, headername, headerstyle)
+        print ('写入表头成功')
+    except ValueError as e:
+        print ('写入表头失败{error}'.format(error=e))
+
+
+    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d')
+    workbook.save(workbookname+'.xls')
+    print ('文件保存成功')
+
+# 测试写入excel文件
+def testwritetoExcel():
+
+    allorderInfoList = [
+    {
+        "orderNum":"2010233WC6BE7Q",
+        "totalCost":"40",
+        "buyerName":"gtozakung",
+        "productList":[
+            {
+                "productTotalPrice":"40",
+                "productAmount":"1",
+                "productName":"เบิร์ดแม็ก ยาถ่ายพยาธินก ใช้ได้ในนกและสัตว์ปีกสายพันธุ์ต่างๆ",
+                "productImg":"https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn",
+                "productSpec":"",
+                "productPrice":"40"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"1",
+        "totalShippingFee":"29",
+        "totalOrderPrice":"68"
+    },
+    {
+        "orderNum":"2010234902CY7S",
+        "totalCost":"35",
+        "buyerName":"39shi",
+        "productList":[
+            {
+                "productTotalPrice":"35",
+                "productAmount":"1",
+                "productName":"กรรไกรตัดเล็บแมว กรรไกรตัดเล็บสุนัข กรรไกรตัดเล็บกระต่าย กรรไกรตัดเล็บสำหรับสัตว์",
+                "productImg":"https://s-cf-th.shopeesz.com/file/192db7900533787b16231835992e6796_tn",
+                "productSpec":"",
+                "productPrice":"35"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"1",
+        "totalShippingFee":"26",
+        "totalOrderPrice":"60"
+    },
+    {
+        "orderNum":"20102464EGHM4N",
+        "totalCost":"60",
+        "buyerName":"thebnatwara",
+        "productList":[
+            {
+                "productTotalPrice":"60",
+                "productAmount":"3",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productSpec":"",
+                "productPrice":"20"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"2",
+        "totalShippingFee":"29",
+        "totalOrderPrice":"87"
+    },
+    {
+        "orderNum":"2010245WMWAFR0",
+        "totalCost":"30",
+        "buyerName":"plengmie",
+        "productList":[
+            {
+                "productTotalPrice":"15",
+                "productAmount":"1",
+                "productName":"商品1",
+                "productImg":"https://s-cf-th.shopeesz.com/file/609f91da34a6a6495d370ec35abe9536_tn",
+                "productSpec":"",
+                "productPrice":"15"
+            },
+            {
+                "productTotalPrice":"15",
+                "productAmount":"1",
+                "productName":"商品2",
+                "productImg":"https://s-cf-th.shopeesz.com/file/609f91da34a6a6495d370ec35abe9536_tn",
+                "productSpec":"",
+                "productPrice":"15"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"1",
+        "totalShippingFee":"0",
+        "totalOrderPrice":"29"
+    },
+    {
+        "orderNum":"20102466KE8B32",
+        "totalCost":"100",
+        "buyerName":"chantabu",
+        "productList":[
+            {
+                "productTotalPrice":"100",
+                "productAmount":"5",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productSpec":"",
+                "productPrice":"20"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"1",
+        "totalShippingFee":"0",
+        "totalOrderPrice":"99"
+    }
+]
+
+    writetoExcelbyOrderInfoList(allorderInfoList)
+
 
 # try:
 #     signinform = WebDriverWait(driver, 10).until(
@@ -329,11 +673,9 @@ def getOrderDetailData(htmlcontent):
 # with open('/Users/HelloWorld/Desktop/login-shopeecookies.json', 'w') as f:
 #     f.write(cookiesdict)
 
-
 if __name__ == "__main__":
-   # opentargetUrl() # 打开目标页面
-   # getallOrders() # 获取所有订单数据
-
-   # 获取订单详情的相关数据
-   getOrderDetailData(None)
+   opentargetUrl() # 打开目标页面
+   allOrderList = getallorderList() # 获取所有的订单列表数据
+   allOrderInfoList = getOrderInfoListbyOrderList(allOrderList) # 根据传入的订单列表获取对应的订单详情列表数据
+   writetoExcelbyOrderInfoList(allOrderInfoList)
 
