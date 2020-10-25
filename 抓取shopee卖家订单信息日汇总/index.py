@@ -21,7 +21,7 @@ shopeeaccount = '0955511464'
 shopeepwd = 'N3184520eung'
 
 stopOrderNum = ''
-excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalCommissionFee','totalShippingFee','totalOrderPrice','totalCost']
+excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost']
 
 driver = None
 logincookiesPath = '/Users/HelloWorld/Desktop/login-shopeecookies.json'
@@ -40,6 +40,28 @@ def opentargetUrl():
     # 再增加cookies前要先进行一次访问
     # 访问shopee卖家中心登录页 https://seller.th.shopee.cn/account/signin
     driver.get(targetUrl)
+
+    # 如果有登录页面元素出现则说明需要重新登录获取cookies
+    try:
+        loginitem = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+            '.app-container .account-container .signin-panel'))
+        )
+        # 有登录表单元素出现说明需要重新登录获取cookies
+    except:
+
+        # 找不到说明无需登录 直接进行下面的操作即可
+        print '获取登录表单元素失败'
+
+    else:
+        # 找到说明需要登录
+        print '获取登录表单元素成功'
+        print loginitem
+
+        return
+
+
+
 
     # 然后再增加cookies
     driver.delete_all_cookies()
@@ -246,11 +268,11 @@ def getOrderInfoListbyOrderList(orderList):
 
             orderInfoList.append(orderInfo)
 
-        except ValueError as e:
-            print ('第{orderindex}/{totalnum}个订单查看失败'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
+        except:
+            print ('第{orderindex}/{totalnum}个订单详情数据获取失败'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
 
-        finally:
-            print ('第{orderindex}/{totalnum}个订单查看完成'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
+        else:
+            print ('第{orderindex}/{totalnum}个订单详情数据获取成功'.format(orderindex=orderindex + 1, totalnum=len(orderList)))
 
 
     print '获取到的订单详情列表数据为:'
@@ -301,12 +323,11 @@ def getOrderDetailPageContent(link, ifopennewwindow):
                 '.fulfillment-order .order-detail .product-list'
             ))
         )
-    except ValueError as e:
-        print ('获取订单详情商品列表元素失败' + e)
+    except:
+        print ('获取订单详情商品列表元素失败')
 
-    finally:
-        print ('获取到订单详情商品列表元素:')
-        # print (productListel)
+    else:
+        print ('获取订单详情商品列表元素成功')
         # 将该页面从上滑到下
         driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
         # 等待1秒
@@ -418,17 +439,15 @@ def getOrderInfo(htmlcontent):
     orderInfo = {
 
         "orderNum":orderNum, # 订单编号
+        "buyerName": buyerName,  # 买家名称
         "shippingWay": shippingWay, # 物流方式
-        "buyerName": buyerName, # 买家名称
         "productList": productList, #订单商品列表
+        "totalCommissionFee": totalCommissionFee,  # 订单总平台服务费
+        "totalShippingFee": totalShippingFee,  # 订单总物流费用
+        "totalOrderPrice": totalOrderPrice,  # 订单实付金额
         "totalCost": totalCost, # 订单总成本
-        "totalShippingFee": totalShippingFee, # 订单总物流费用
-        "totalCommissionFee": totalCommissionFee, # 订单总平台服务费
-        "totalOrderPrice": totalOrderPrice, # 订单实付金额
 
     }
-
-    # print orderInfo
 
     return orderInfo
 
@@ -457,69 +476,131 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     headerstyle = xlwt.XFStyle()  # 初始化样式
     headerstyle.font = headerfont  # 设定样式
     headerstyle.alignment = headeralignment
+
+
+    headerkeyArr = []  # 表头的键值 根据实际写入excel中的数据得出
+
+
     # 遍历数据写入要存储的数据
 
-    startrowindex = 1
-    headerkeyArr = []
+    startrowindex = 1 # 开始写入的行数索引
 
-    for rowindex,eachdatadic in enumerate(orderinfolist):
+    # 写入每一行订单数据
+    for orderindex,eachorderdata in enumerate(orderinfolist):
 
-        # 根据筛选数组过滤对应的写入数据
-        for colindex, datakey in enumerate(eachdatadic.keys()):
-            if not datakey in excelFileKeyArr:
-                del eachdatadic[datakey]
-            elif rowindex == 0:
-                headerkeyArr.append(datakey)
+        # 开始尝试遍历每一个订单
+        try:
+
+            startcolindex = 0  # 开始写入的列数索引 归零
+
+            # 开始根据键值数组写入每一列数据
+            for headerkey in excelFileKeyArr:
+
+                datavalue = eachorderdata[headerkey]
+
+                # 值存在的时候判断值的类型进行写入
+                if datavalue is not None:
+
+                    try:
+                        # 写入数据
+                        # 看是否是字符串
+                        # 如果是字符串则直接写入
+                        if isinstance(datavalue, str):
+
+                            myordersheet.write(startrowindex, startcolindex, datavalue)
+                            print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
+                            if startrowindex == 1:
+                                headerkeyArr.append(headerkey) # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                                # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
+                                myordersheet.col(startcolindex).width = 30 * 256
+
+                            startcolindex = startcolindex + 1  # 列数索引+1
+
+                        # 如果是数组则遍历数组进行写入
+                        elif isinstance(datavalue, list):
+
+                            begincolindex = startcolindex # 记录最开始的列数索引
+                            for (productindex, eachproduct) in enumerate(datavalue):
+
+                                startcolindex = begincolindex # 列数索引复位
+
+                                # 写入商品名称
+                                productName = eachproduct['productName']
+                                myordersheet.write(startrowindex, startcolindex, productName)
+                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
+                                if startrowindex == 1:
+                                    headerkeyArr.append('productName')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
+                                    myordersheet.col(startcolindex).width = 60 * 256
+
+                                startcolindex = startcolindex + 1
+
+                                # 写入商品数量
+                                productAmount = eachproduct['productAmount']
+                                myordersheet.write(startrowindex, startcolindex, productAmount)
+                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
+                                if startrowindex == 1:
+                                    headerkeyArr.append('productAmount')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
+                                    myordersheet.col(startcolindex).width = 30 * 256
+
+                                startcolindex = startcolindex + 1
+
+                                # 写入商品单价
+                                productPrice = eachproduct['productPrice']
+                                myordersheet.write(startrowindex, startcolindex, productPrice)
+                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
+                                if startrowindex == 1:
+                                    headerkeyArr.append('productPrice')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
+                                    myordersheet.col(startcolindex).width = 30 * 256
+
+                                startcolindex = startcolindex + 1
+
+                                # 写入商品总价
+                                productTotalPrice = eachproduct['productTotalPrice']
+                                myordersheet.write(startrowindex, startcolindex, productTotalPrice)
+                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
+                                if startrowindex == 1:
+                                    headerkeyArr.append('productTotalPrice')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
+                                    myordersheet.col(startcolindex).width = 30 * 256
+
+                                startcolindex = startcolindex + 1
+
+                                # # 合并单元格，合并第2行到第4行的第4列到第5列
+                                # myordersheet.write_merge(2, 4, 4, 5, u'合并')
+
+                                # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会加
+                                if len(datavalue) > 1 and not productindex == len(datavalue) - 1:
+                                    startrowindex = startrowindex + 1
+
+                    except:
+                        print ('写入第{startcolindex}列数据失败'.format(startcolindex=startcolindex + 1))
+
+            # 写入完成将行数索引+1
+            startrowindex = startrowindex + 1
 
 
-        # 开始写入数据
-        for colindex,datakey in enumerate(eachdatadic.keys()):
+        except:
+            print ('写入第{orderindex}/{totalorderindex}个订单数据失败'.format(orderindex=orderindex + 1,
+                                                                     totalorderindex=len(orderinfolist)))
+        else:
 
-            # 设置列宽 字数 * 256
-            myordersheet.col(colindex).width = 30 * 256
+            print ('写入第{orderindex}/{totalorderindex}个订单数据成功'.format(orderindex=orderindex + 1,
 
-            datavalue = eachdatadic[datakey]
+                                                                     totalorderindex=len(orderinfolist)))
 
-            try:
-                # 写入数据
-                # 看是否是字符串
-                # 如果是字符串则直接写入
-                if isinstance(datavalue, str):
-                    myordersheet.write(startrowindex, colindex, datavalue)
-
-                # 如果是数组则遍历数组进行写入
-                if isinstance(datavalue, list):
-                    for (productindex, eachproduct) in enumerate(datavalue):
-
-                        productName = eachproduct['productName']
-
-                        myordersheet.write(startrowindex, colindex, productName)
-
-                        # # 合并单元格，合并第2行到第4行的第4列到第5列
-                        # myordersheet.write_merge(2, 4, 4, 5, u'合并')
-
-                        # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会加
-                        if not len(datavalue) == 1 and not productindex == len(datavalue) - 1:
-                            startrowindex = startrowindex + 1
-
-                # 打印
-                print ('写入第{num}/{totalnum}条数据成功'.format(num=rowindex,totalnum=len(orderinfolist)))
-            except ValueError as e:
-                print ('写入数据失败{error}'.format(error=e))
-
-        startrowindex = startrowindex + 1
-
-
-    # 最后写入表头
+    # 写入表头数据
     try:
-        for headerindex, headername in enumerate(headerkeyArr):
-            myordersheet.write(0, headerindex, headername, headerstyle)
+        for (headerindex, headerkey) in enumerate(headerkeyArr):
+         myordersheet.write(0,headerindex,headerkey,headerstyle)
+    except:
+        print ('写入表头失败')
+    else:
         print ('写入表头成功')
-    except ValueError as e:
-        print ('写入表头失败{error}'.format(error=e))
 
-
-    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d')
+    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     workbook.save(workbookname+'.xls')
     print ('文件保存成功')
 
@@ -529,7 +610,6 @@ def testwritetoExcel():
     allorderInfoList = [
     {
         "orderNum":"2010233WC6BE7Q",
-        "totalCost":"40",
         "buyerName":"gtozakung",
         "productList":[
             {
@@ -542,13 +622,13 @@ def testwritetoExcel():
             }
         ],
         "shippingWay":"Shopee Express",
+        "totalCost": "40",
         "totalCommissionFee":"1",
         "totalShippingFee":"29",
         "totalOrderPrice":"68"
     },
     {
         "orderNum":"2010234902CY7S",
-        "totalCost":"35",
         "buyerName":"39shi",
         "productList":[
             {
@@ -561,6 +641,7 @@ def testwritetoExcel():
             }
         ],
         "shippingWay":"Shopee Express",
+        "totalCost": "35",
         "totalCommissionFee":"1",
         "totalShippingFee":"26",
         "totalOrderPrice":"60"
@@ -675,7 +756,9 @@ def testwritetoExcel():
 
 if __name__ == "__main__":
    opentargetUrl() # 打开目标页面
-   allOrderList = getallorderList() # 获取所有的订单列表数据
-   allOrderInfoList = getOrderInfoListbyOrderList(allOrderList) # 根据传入的订单列表获取对应的订单详情列表数据
-   writetoExcelbyOrderInfoList(allOrderInfoList)
+   # allOrderList = getallorderList() # 获取所有的订单列表数据
+   # allOrderInfoList = getOrderInfoListbyOrderList(allOrderList) # 根据传入的订单列表获取对应的订单详情列表数据
+   # writetoExcelbyOrderInfoList(allOrderInfoList)
+
+   # testwritetoExcel()
 
