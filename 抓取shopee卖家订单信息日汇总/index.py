@@ -24,54 +24,100 @@ stopOrderNum = ''
 excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost']
 
 driver = None
-logincookiesPath = '/Users/HelloWorld/Desktop/login-shopeecookies.json'
+logincookiesPath = 'shopeelogincookies.json'
 # targetUrl = 'https://seller.th.shopee.cn'
 targetUrl = 'https://seller.th.shopee.cn/portal/sale?type=shipping'
 
+# 打开浏览器
+def opendriver():
+
+    global driver  # 注意这里的driver要进行全局变量的声明
+    driver = webdriver.Chrome()
 
 # 打开链接
 def opentargetUrl():
 
-    global driver #注意这里的driver要进行全局变量的声明
-    driver = webdriver.Chrome()
-
     # 添加谷歌浏览器的启动配置
 
-    # 再增加cookies前要先进行一次访问
+    # 在增加cookies前要先进行一次get访问
     # 访问shopee卖家中心登录页 https://seller.th.shopee.cn/account/signin
+    driver.get(targetUrl)
+
+    # 然后删除当前driver的所有cookies
+    driver.delete_all_cookies()
+    # 从本地文件中读取cookies写入
+    with open(logincookiesPath, 'r') as f:
+        list_cookies = json.loads(f.read())
+
+    print list_cookies
+
+    for i in list_cookies:
+        driver.add_cookie(i)
+
+    # 加完cookies之后再次进行一次get访问
     driver.get(targetUrl)
 
     # 如果有登录页面元素出现则说明需要重新登录获取cookies
     try:
-        loginitem = WebDriverWait(driver, 10).until(
+        signinform = WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR,
-            '.app-container .account-container .signin-panel'))
+            '.app-container .account-container .signin-panel .signin .signin-form'))
         )
         # 有登录表单元素出现说明需要重新登录获取cookies
     except:
 
         # 找不到说明无需登录 直接进行下面的操作即可
-        print '获取登录表单元素失败'
+        print '没有定位到登录页面元素,本次无需登录,直接开始获取订单数据'
+        allOrderList = getallorderList()  # 获取所有的订单列表数据
+        allOrderInfoList = getOrderInfoListbyOrderList(allOrderList)  # 根据传入的订单列表获取对应的订单详情列表数据
+        writetoExcelbyOrderInfoList(allOrderInfoList) # 将订单详情列表数据写入excel中
 
     else:
         # 找到说明需要登录
-        print '获取登录表单元素成功'
-        print loginitem
+        print '获取登录表单元素成功,本次操作需要先登录'
+        starttologin() # 开始登录操作
 
-        return
+# 开始登录操作
+def starttologin():
 
+    # 定位登录输入框
+    inputelements = driver.find_elements_by_css_selector(
+        '.signin .signin-form .shopee-form-item .shopee-form-item__control .shopee-input input')
 
+    # 账号输入框
+    accountel = inputelements[0]
+    pwdel = inputelements[1]
 
+    # 键入账号密码
+    accountel.send_keys(shopeeaccount)
+    pwdel.send_keys(shopeepwd)
 
-    # 然后再增加cookies
-    driver.delete_all_cookies()
-    with open(logincookiesPath, 'r') as f:
-        list_cookies = json.loads(f.read())
+    # 点击记住密码
+    driver.find_element_by_css_selector('.signin-form .remember .shopee-checkbox').click()
 
-    for i in list_cookies:
-        driver.add_cookie(i)
+    # 点击登录按钮进行登录 此处改为手动登录
+    # driver.find_element_by_css_selector('.signin-form button.shopee-button').click()
 
-    driver.get(targetUrl)
+    # 等待直到页面进入主页面然后获取cookies
+    try:
+        sidebarelement = WebDriverWait(driver, 200).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, '.sidebar-container'))
+        )
+    except:
+        print('登录失败,重新进行登录')
+    else:
+        print ('登录成功,开始获取cookies')
+
+    # 获取cookies
+    cookies = driver.get_cookies()
+    # 将获取到的cookies序列化保存到本地
+    cookiesdict = json.dumps(cookies)
+
+    with open(logincookiesPath, 'w') as f:
+        f.write(cookiesdict)
+
+    # 写入完cookies之后重新访问目标链接
+    opentargetUrl()
 
 
 # 获取所有的订单列表
@@ -458,7 +504,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     # 创建工作簿
     workbook = xlwt.Workbook(encoding='utf-8')
     # 创建sheet 取当前的日期为sheet名称
-    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
+    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '-' + str(len(orderinfolist))
     myordersheet = workbook.add_sheet(sheetname, cell_overwrite_ok=True)
 
     # 表格样式
@@ -600,7 +646,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     else:
         print ('写入表头成功')
 
-    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '-' + str(len(orderinfolist))
     workbook.save(workbookname+'.xls')
     print ('文件保存成功')
 
@@ -715,50 +761,33 @@ def testwritetoExcel():
 
     writetoExcelbyOrderInfoList(allorderInfoList)
 
+# 测试写入cookies文件
+def testwritecookies():
+    # 获取cookies
+    testcookies = {
+        "name": 'zhangsan',
+        "age": 28
+    }
+    # 将获取到的cookies序列化保存到本地
+    testcookiesdict = json.dumps(testcookies)
 
-# try:
-#     signinform = WebDriverWait(driver, 10).until(
-#         EC.presence_of_element_located((By.CSS_SELECTOR, '.signin .signin-form'))
-#     )
-# except ValueError as e:
-#     print ('错误原因为:' + e)
-#
-# # 定位登录输入框
-# inputelements = driver.find_elements_by_css_selector('.signin .signin-form .shopee-form-item .shopee-form-item__control .shopee-input input')
-#
-# # 账号输入框
-# accountel = inputelements[0]
-# pwdel = inputelements[1]
-#
-# # 键入账号密码
-# accountel.send_keys(shopeeaccount)
-# pwdel.send_keys(shopeepwd)
-#
-# # 点击记住密码
-# rememberel = driver.find_element_by_css_selector('.signin-form .remember .shopee-checkbox').click()
+    with open(logincookiesPath, 'w') as f:
+        f.write(testcookiesdict)
 
-# 进行登录
-# loginbtn = driver.find_element_by_css_selector('.signin-form button.shopee-button').click()
+# 测试读取cookies文件
+def testreadcookies():
+    with open(logincookiesPath, 'r') as f:
+        testlist_cookies = json.loads(f.read())
+    print testlist_cookies
 
-# # 等待直到页面进入主页面然后获取cookies
-# sidebarelement = WebDriverWait(driver, 100).until(
-#         EC.presence_of_element_located((By.CSS_SELECTOR, '.sidebar-container'))
-# )
-#
-# # 获取cookies
-# cookies = driver.get_cookies()
-#
-# # 将获取到的cookies序列化保存到本地
-# cookiesdict = json.dumps(cookies)
-#
-# with open('/Users/HelloWorld/Desktop/login-shopeecookies.json', 'w') as f:
-#     f.write(cookiesdict)
 
 if __name__ == "__main__":
-   opentargetUrl() # 打开目标页面
-   # allOrderList = getallorderList() # 获取所有的订单列表数据
-   # allOrderInfoList = getOrderInfoListbyOrderList(allOrderList) # 根据传入的订单列表获取对应的订单详情列表数据
-   # writetoExcelbyOrderInfoList(allOrderInfoList)
 
-   # testwritetoExcel()
+    opendriver() # 打开浏览器
+    opentargetUrl() # 打开目标页面 开始进行操作
+
+
+    # testwritetoExcel()
+    # testwritecookies()
+    # testreadcookies()
 
