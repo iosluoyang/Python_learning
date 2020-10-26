@@ -504,7 +504,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     # 创建工作簿
     workbook = xlwt.Workbook(encoding='utf-8')
     # 创建sheet 取当前的日期为sheet名称
-    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '-' + str(len(orderinfolist))
+    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     myordersheet = workbook.add_sheet(sheetname, cell_overwrite_ok=True)
 
     # 表格样式
@@ -646,7 +646,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     else:
         print ('写入表头成功')
 
-    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + '-' + str(len(orderinfolist))
+    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     workbook.save(workbookname+'.xls')
     print ('文件保存成功')
 
