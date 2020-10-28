@@ -49,8 +49,6 @@ def opentargetUrl():
     with open(logincookiesPath, 'r') as f:
         list_cookies = json.loads(f.read())
 
-    print list_cookies
-
     for i in list_cookies:
         driver.add_cookie(i)
 
@@ -504,7 +502,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     # 创建工作簿
     workbook = xlwt.Workbook(encoding='utf-8')
     # 创建sheet 取当前的日期为sheet名称
-    sheetname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    sheetname = 'LAL-' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
     myordersheet = workbook.add_sheet(sheetname, cell_overwrite_ok=True)
 
     # 表格样式
@@ -646,118 +644,14 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     else:
         print ('写入表头成功')
 
-    workbookname = 'LAL' + datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    workbookname = 'LAL-' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
     workbook.save(workbookname+'.xls')
     print ('文件保存成功')
 
 # 测试写入excel文件
 def testwritetoExcel():
 
-    allorderInfoList = [
-    {
-        "orderNum":"2010233WC6BE7Q",
-        "buyerName":"gtozakung",
-        "productList":[
-            {
-                "productTotalPrice":"40",
-                "productAmount":"1",
-                "productName":"เบิร์ดแม็ก ยาถ่ายพยาธินก ใช้ได้ในนกและสัตว์ปีกสายพันธุ์ต่างๆ",
-                "productImg":"https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn",
-                "productSpec":"",
-                "productPrice":"40"
-            }
-        ],
-        "shippingWay":"Shopee Express",
-        "totalCost": "40",
-        "totalCommissionFee":"1",
-        "totalShippingFee":"29",
-        "totalOrderPrice":"68"
-    },
-    {
-        "orderNum":"2010234902CY7S",
-        "buyerName":"39shi",
-        "productList":[
-            {
-                "productTotalPrice":"35",
-                "productAmount":"1",
-                "productName":"กรรไกรตัดเล็บแมว กรรไกรตัดเล็บสุนัข กรรไกรตัดเล็บกระต่าย กรรไกรตัดเล็บสำหรับสัตว์",
-                "productImg":"https://s-cf-th.shopeesz.com/file/192db7900533787b16231835992e6796_tn",
-                "productSpec":"",
-                "productPrice":"35"
-            }
-        ],
-        "shippingWay":"Shopee Express",
-        "totalCost": "35",
-        "totalCommissionFee":"1",
-        "totalShippingFee":"26",
-        "totalOrderPrice":"60"
-    },
-    {
-        "orderNum":"20102464EGHM4N",
-        "totalCost":"60",
-        "buyerName":"thebnatwara",
-        "productList":[
-            {
-                "productTotalPrice":"60",
-                "productAmount":"3",
-                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
-                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
-                "productSpec":"",
-                "productPrice":"20"
-            }
-        ],
-        "shippingWay":"Shopee Express",
-        "totalCommissionFee":"2",
-        "totalShippingFee":"29",
-        "totalOrderPrice":"87"
-    },
-    {
-        "orderNum":"2010245WMWAFR0",
-        "totalCost":"30",
-        "buyerName":"plengmie",
-        "productList":[
-            {
-                "productTotalPrice":"15",
-                "productAmount":"1",
-                "productName":"商品1",
-                "productImg":"https://s-cf-th.shopeesz.com/file/609f91da34a6a6495d370ec35abe9536_tn",
-                "productSpec":"",
-                "productPrice":"15"
-            },
-            {
-                "productTotalPrice":"15",
-                "productAmount":"1",
-                "productName":"商品2",
-                "productImg":"https://s-cf-th.shopeesz.com/file/609f91da34a6a6495d370ec35abe9536_tn",
-                "productSpec":"",
-                "productPrice":"15"
-            }
-        ],
-        "shippingWay":"Shopee Express",
-        "totalCommissionFee":"1",
-        "totalShippingFee":"0",
-        "totalOrderPrice":"29"
-    },
-    {
-        "orderNum":"20102466KE8B32",
-        "totalCost":"100",
-        "buyerName":"chantabu",
-        "productList":[
-            {
-                "productTotalPrice":"100",
-                "productAmount":"5",
-                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
-                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
-                "productSpec":"",
-                "productPrice":"20"
-            }
-        ],
-        "shippingWay":"Shopee Express",
-        "totalCommissionFee":"1",
-        "totalShippingFee":"0",
-        "totalOrderPrice":"99"
-    }
-]
+    allorderInfoList = [{"orderNum": "201027E3G20Q7B", "totalShippingFee": "2", "buyerName": "dabiyjoe", "productList": [{"productTotalPrice": "50", "productAmount": "1", "productName": "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e01\u0e23\u0e07\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 \u0e1c\u0e49\u0e32\u0e1a\u0e32\u0e07 \u0e21\u0e35\u0e0b\u0e34\u0e1a", "productImg": "https://s-cf-th.shopeesz.com/file/d77b96db1317550913fea75eda989999_tn", "productSpec": "", "productPrice": "50"}, {"productTotalPrice": "70", "productAmount": "1", "productName": "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e01\u0e23\u0e07\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 \u0e1c\u0e49\u0e32\u0e1a\u0e32\u0e07 \u0e21\u0e35\u0e0b\u0e34\u0e1a", "productImg": "https://s-cf-th.shopeesz.com/file/d77b96db1317550913fea75eda989999_tn", "productSpec": "", "productPrice": "70"}], "shippingWay": "DHL Domestic", "totalCommissionFee": "3", "totalCost": "120", "totalOrderPrice": "119"}, {"orderNum": "201028F5VK3SMQ", "totalShippingFee": "33", "buyerName": "coolz_may", "productList": [{"productTotalPrice": "40", "productAmount": "2", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "DHL Domestic", "totalCommissionFee": "33", "totalCost": "40", "totalOrderPrice": "39"}, {"orderNum": "201027EN33BCKN", "totalShippingFee": "29", "buyerName": "nunio", "productList": [{"productTotalPrice": "50", "productAmount": "2", "productName": "\u0e27\u0e34\u0e15\u0e32\u0e21\u0e34\u0e19\u0e2b\u0e19\u0e39 \u0e40\u0e01\u0e23\u0e14\u0e1e\u0e23\u0e35\u0e40\u0e21\u0e35\u0e48\u0e22\u0e21 \u0e27\u0e34\u0e15\u0e32\u0e21\u0e34\u0e19\u0e23\u0e27\u0e21\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2b\u0e19\u0e39 \u0e01\u0e23\u0e30\u0e23\u0e2d\u0e01 \u0e40\u0e21\u0e48\u0e19\u0e41\u0e04\u0e23\u0e30 \u0e0a\u0e39\u0e01\u0e49\u0e32\u0e44\u0e01\u0e25\u0e40\u0e14\u0e2d\u0e23\u0e4c \u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e0a\u0e19\u0e34\u0e14\u0e40\u0e25\u0e47\u0e01", "productImg": "https://s-cf-th.shopeesz.com/file/0469c0b78f3dc406099b1deff0fc2495_tn", "productSpec": "", "productPrice": "25"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "50", "totalOrderPrice": "77"}, {"orderNum": "201027EHQ4A8N0", "totalShippingFee": "29", "buyerName": "junemusic155", "productList": [{"productTotalPrice": "40", "productAmount": "1", "productName": "\u0e40\u0e1a\u0e34\u0e23\u0e4c\u0e14\u0e41\u0e21\u0e47\u0e01 \u0e22\u0e32\u0e16\u0e48\u0e32\u0e22\u0e1e\u0e22\u0e32\u0e18\u0e34\u0e19\u0e01 \u0e43\u0e0a\u0e49\u0e44\u0e14\u0e49\u0e43\u0e19\u0e19\u0e01\u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e1b\u0e35\u0e01\u0e2a\u0e32\u0e22\u0e1e\u0e31\u0e19\u0e18\u0e38\u0e4c\u0e15\u0e48\u0e32\u0e07\u0e46", "productImg": "https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn", "productSpec": "", "productPrice": "40"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "40", "totalOrderPrice": "68"}, {"orderNum": "201027DX5E06RS", "totalShippingFee": "0", "buyerName": "noklekintarapanith", "productList": [{"productTotalPrice": "200", "productAmount": "10", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "4", "totalCost": "200", "totalOrderPrice": "196"}, {"orderNum": "201028F4EYWCNM", "totalShippingFee": "29", "buyerName": "rom0807986219", "productList": [{"productTotalPrice": "35", "productAmount": "1", "productName": "\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 Fruity \u0e1f\u0e23\u0e38\u0e4a\u0e15\u0e15\u0e35\u0e49 \u0e1c\u0e2a\u0e21\u0e15\u0e31\u0e07\u0e16\u0e31\u0e07\u0e40\u0e0a\u0e48\u0e32 \u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01\u0e01\u0e23\u0e07\u0e2b\u0e31\u0e27\u0e08\u0e38\u0e01 \u0e2a\u0e39\u0e15\u0e23 \u0e40\u0e2d\u0e47\u0e19\u0e40\u0e19\u0e2d\u0e23\u0e4c\u0e08\u0e35\u0e49", "productImg": "https://s-cf-th.shopeesz.com/file/6edbd0a64d6d5e7de635349eb4464fbc_tn", "productSpec": "", "productPrice": "35"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "35", "totalOrderPrice": "63"}, {"orderNum": "201028FWJPE69X", "totalShippingFee": "29", "buyerName": "tom2303", "productList": [{"productTotalPrice": "60", "productAmount": "3", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "60", "totalOrderPrice": "87"}, {"orderNum": "201027E5S6SNRW", "totalShippingFee": "29", "buyerName": "beewichuta", "productList": [{"productTotalPrice": "60", "productAmount": "3", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "60", "totalOrderPrice": "87"}, {"orderNum": "201027EVCAAP8H", "totalShippingFee": "0", "buyerName": "infinity.ohooshop", "productList": [{"productTotalPrice": "29", "productAmount": "1", "productName": "Bird Ring \u0e2b\u0e48\u0e27\u0e07\u0e02\u0e32\u0e19\u0e01 \u0e41\u0e2b\u0e27\u0e19\u0e19\u0e01 \u0e2b\u0e48\u0e27\u0e07\u0e43\u0e2a\u0e48\u0e02\u0e32\u0e19\u0e01 \u0e40\u0e1a\u0e2d\u0e23\u0e4c 4, 5, 6, 8", "productImg": "https://s-cf-th.shopeesz.com/file/f3be3dad3be1487ae087cde31cabbbfb_tn", "productSpec": "", "productPrice": "29"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "29", "totalOrderPrice": "28"}, {"orderNum": "201028FMBM1KC1", "totalShippingFee": "35", "buyerName": "namprigtongjud", "productList": [{"productTotalPrice": "360", "productAmount": "20", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "18"}], "shippingWay": "Shopee Express", "totalCommissionFee": "8", "totalCost": "360", "totalOrderPrice": "387"}, {"orderNum": "201028F3WSQ1B0", "totalShippingFee": "0", "buyerName": "nalutpornkrairiksh", "productList": [{"productTotalPrice": "20", "productAmount": "2", "productName": "\u0e16\u0e49\u0e27\u0e22\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e49\u0e33\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e01\u0e01\u0e32\u0e07\u0e40\u0e02\u0e19 \u0e16\u0e49\u0e27\u0e22\u0e1e\u0e25\u0e32\u0e2a\u0e15\u0e34\u0e01\u0e43\u0e2a\u0e48\u0e2d\u0e32\u0e2b\u0e32\u0e23 \u0e16\u0e49\u0e27\u0e22\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e2b\u0e19\u0e39 \u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e40\u0e25\u0e35\u0e49\u0e22\u0e07\u0e0a\u0e19\u0e34\u0e14\u0e40\u0e25\u0e47\u0e01", "productImg": "https://s-cf-th.shopeesz.com/file/92c324ced89c30159595e3022fed8ed7_tn", "productSpec": "", "productPrice": "10"}], "shippingWay": "Shopee Express", "totalCommissionFee": "20", "totalCost": "20", "totalOrderPrice": "20"}, {"orderNum": "201028EYC7S4KU", "totalShippingFee": "29", "buyerName": "warangziie89", "productList": [{"productTotalPrice": "40", "productAmount": "2", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "40", "productAmount": "2", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "107"}, {"orderNum": "201028FHW0GNDY", "totalShippingFee": "28", "buyerName": "may163120", "productList": [{"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "106"}, {"orderNum": "201028FWKVY36S", "totalShippingFee": "29", "buyerName": "katekate27", "productList": [{"productTotalPrice": "174", "productAmount": "3", "productName": "\u0e23\u0e31\u0e07\u0e19\u0e01 \u0e23\u0e31\u0e07\u0e1f\u0e32\u0e07 \u0e1a\u0e49\u0e32\u0e19\u0e1f\u0e32\u0e07\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e40\u0e25\u0e35\u0e49\u0e22\u0e07 \u0e1a\u0e49\u0e32\u0e19\u0e19\u0e01 \u0e1a\u0e49\u0e32\u0e19\u0e0a\u0e39\u0e01\u0e49\u0e32\u0e23\u0e4c \u0e1a\u0e49\u0e32\u0e19\u0e2b\u0e19\u0e39", "productImg": "https://s-cf-th.shopeesz.com/file/1f90807645c55ad38bde6e571a624c44_tn", "productSpec": "", "productPrice": "58"}], "shippingWay": "Shopee Express", "totalCommissionFee": "4", "totalCost": "174", "totalOrderPrice": "199"}, {"orderNum": "201028EXAQ01A5", "totalShippingFee": "26", "buyerName": "nuttarika05", "productList": [{"productTotalPrice": "80", "productAmount": "4", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Kerry", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "104"}, {"orderNum": "201027E1PUGQ91", "totalShippingFee": "0", "buyerName": "kanokkan9", "productList": [{"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Kerry", "totalCommissionFee": "20", "totalCost": "20", "totalOrderPrice": "20"}, {"orderNum": "201027ECTHYH1C", "totalShippingFee": "35", "buyerName": "panyawutpraimpanya", "productList": [{"productTotalPrice": "80", "productAmount": "2", "productName": "\u0e40\u0e1a\u0e34\u0e23\u0e4c\u0e14\u0e41\u0e21\u0e47\u0e01 \u0e22\u0e32\u0e16\u0e48\u0e32\u0e22\u0e1e\u0e22\u0e32\u0e18\u0e34\u0e19\u0e01 \u0e43\u0e0a\u0e49\u0e44\u0e14\u0e49\u0e43\u0e19\u0e19\u0e01\u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e1b\u0e35\u0e01\u0e2a\u0e32\u0e22\u0e1e\u0e31\u0e19\u0e18\u0e38\u0e4c\u0e15\u0e48\u0e32\u0e07\u0e46", "productImg": "https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn", "productSpec": "", "productPrice": "40"}], "shippingWay": "Kerry", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "113"}]
 
     writetoExcelbyOrderInfoList(allorderInfoList)
 
@@ -783,11 +677,12 @@ def testreadcookies():
 
 if __name__ == "__main__":
 
-    opendriver() # 打开浏览器
-    opentargetUrl() # 打开目标页面 开始进行操作
+    # opendriver() # 打开浏览器
+    # opentargetUrl() # 打开目标页面 开始进行操作
 
 
-    # testwritetoExcel()
-    # testwritecookies()
-    # testreadcookies()
+    testwritetoExcel() # 测试写如订单数据到excel中
+
+    # testwritecookies() # 测试写入cookies
+    # testreadcookies() # 测试读取cookies
 
