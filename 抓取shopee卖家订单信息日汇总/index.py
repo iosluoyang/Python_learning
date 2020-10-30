@@ -15,13 +15,19 @@ from time import sleep
 import re
 import json
 import xlwt
+# import xlsxwriter
+import collections
+from collections import Iterable
 from datetime import datetime
 
 shopeeaccount = '0955511464'
 shopeepwd = 'N3184520eung'
 
 stopOrderNum = ''
-excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost']
+# 'orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost'
+excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee']
+# 'productName','productImg','productSpec','productPrice','productAmount','productTotalPrice'
+excelProFileKeyArr = ['productName','productSpec','productPrice','productAmount','productTotalPrice']
 
 driver = None
 logincookiesPath = 'shopeelogincookies.json'
@@ -441,18 +447,18 @@ def getOrderInfo(htmlcontent):
         productTotalPrice = eachproduct.select('.subtotal')[0].text.strip().encode("utf-8")
         # print productTotalPrice
 
-        productInfo = {
-            "productImg": productImg,
-            "productName": productName,
-            "productSpec": productSpec,
-            "productPrice": productPrice,
-            "productAmount": productAmount,
-            "productTotalPrice": productTotalPrice
-        }
+        # 构造商品数据collection有序字典
+        productInfo = collections.OrderedDict()
+        productInfo['productName'] = productName
+        productInfo['productImg'] = productImg
+        productInfo['productSpec'] = productSpec
+        productInfo['productPrice'] = productPrice
+        productInfo['productAmount'] = productAmount
+        productInfo['productTotalPrice'] = productTotalPrice
 
         productList.append(productInfo)
 
-    # print productList
+    print productList
 
     # 订单费用相关
     orderPaymentEl = soup.select('.payment-info-details')[0]
@@ -521,6 +527,13 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     headerstyle.font = headerfont  # 设定样式
     headerstyle.alignment = headeralignment
 
+    # 合并表格的样式
+    mergestyle = xlwt.XFStyle()  # 初始化合并单元格样式
+    mergealignment = xlwt.Alignment()  # Create Alignment
+    mergealignment.horz = xlwt.Alignment.HORZ_LEFT  # May be: HORZ_GENERAL, HORZ_LEFT, HORZ_CENTER, HORZ_RIGHT, HORZ_FILLED, HORZ_JUSTIFIED, HORZ_CENTER_ACROSS_SEL, HORZ_DISTRIBUTED
+    mergealignment.vert = xlwt.Alignment.VERT_CENTER  # May be: VERT_TOP, VERT_CENTER, VERT_BOTTOM, VERT_JUSTIFIED, VERT_DISTRIBUTED
+    mergestyle.alignment = mergealignment
+
 
     headerkeyArr = []  # 表头的键值 根据实际写入excel中的数据得出
 
@@ -536,6 +549,8 @@ def writetoExcelbyOrderInfoList(orderinfolist):
         try:
 
             startcolindex = 0  # 开始写入的列数索引 归零
+            ifreadprolist = False  # 是否已经读取过商品列数据的标识
+            mergeIndexArr = [] # 合并单元格的列索引
 
             # 开始根据键值数组写入每一列数据
             for headerkey in excelFileKeyArr:
@@ -546,18 +561,35 @@ def writetoExcelbyOrderInfoList(orderinfolist):
                 if datavalue is not None:
 
                     try:
+
                         # 写入数据
                         # 看是否是字符串
                         # 如果是字符串则直接写入
                         if isinstance(datavalue, str):
 
-                            myordersheet.write(startrowindex, startcolindex, datavalue)
-                            print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
-                            if startrowindex == 1:
-                                headerkeyArr.append(headerkey) # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
+                            # 写入数据 如果已经读取过商品的列数据则将数据写入的行数变更为当前行数-商品数组长度+1
+                            writerowindex = startrowindex
+                            if ifreadprolist:
+                                writerowindex = startrowindex - len(eachorderdata['productList']) + 1
+
+                            myordersheet.write(writerowindex, startcolindex, datavalue)
+                            print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex))
+                            # 写入完成将当前的startrowindex和当前startcol存入数据中
+                            mergedic = {
+                                "mergerowindex": writerowindex,
+                                "mergecolindex": startcolindex,
+                                "mergevalue": datavalue
+                            }
+                            print mergedic
+                            mergeIndexArr.append(mergedic)
+
+                            # 如果是第一行的数据则将对应的键值放入表头数组中
+                            if orderindex == 0:
+                                headerkeyArr.append(headerkey)  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
                                 # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
                                 myordersheet.col(startcolindex).width = 30 * 256
 
+                            # 写入完成之后将列数+1
                             startcolindex = startcolindex + 1  # 列数索引+1
 
                         # 如果是数组则遍历数组进行写入
@@ -568,61 +600,56 @@ def writetoExcelbyOrderInfoList(orderinfolist):
 
                                 startcolindex = begincolindex # 列数索引复位
 
-                                # 写入商品名称
-                                productName = eachproduct['productName']
-                                myordersheet.write(startrowindex, startcolindex, productName)
-                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
-                                if startrowindex == 1:
-                                    headerkeyArr.append('productName')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
-                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
-                                    myordersheet.col(startcolindex).width = 60 * 256
+                                # 遍历对象数组中的可迭代对象键值进行数据写入
+                                for productdickey, productvalue in eachproduct.items():
 
-                                startcolindex = startcolindex + 1
+                                    # 如果商品键值在文件键值数组中则进行写入
+                                    if productdickey in excelProFileKeyArr:
 
-                                # 写入商品数量
-                                productAmount = eachproduct['productAmount']
-                                myordersheet.write(startrowindex, startcolindex, productAmount)
-                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
-                                if startrowindex == 1:
-                                    headerkeyArr.append('productAmount')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
-                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
-                                    myordersheet.col(startcolindex).width = 30 * 256
+                                        # 写入该列数据
+                                        # 如果是商品图片则写入图片
+                                        if productdickey == 'productImg':
+                                            # myordersheet.insert_image(startrowindex, startcolindex, 'pro.png', {'url':productvalue})
+                                            # 暂时写入图片路径
+                                            myordersheet.write(startrowindex, startcolindex, productvalue)
+                                        else:
+                                            myordersheet.write(startrowindex, startcolindex, productvalue)
+                                        print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex))
 
-                                startcolindex = startcolindex + 1
+                                        # 如果是第一行的订单数据且为第一个商品数据则将对应的键值放入表头数组中
+                                        if orderindex == 0 and productindex == 0:
+                                            headerkeyArr.append(productdickey)
+                                            myordersheet.col(startcolindex).width = 10 * 256  # 设置该列列宽
+                                            # 如果是商品名称则将列宽设置为60
+                                            if productdickey == 'productName':
+                                                myordersheet.col(startcolindex).width = 60 * 256  # 设置该列列宽
 
-                                # 写入商品单价
-                                productPrice = eachproduct['productPrice']
-                                myordersheet.write(startrowindex, startcolindex, productPrice)
-                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
-                                if startrowindex == 1:
-                                    headerkeyArr.append('productPrice')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
-                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
-                                    myordersheet.col(startcolindex).width = 30 * 256
+                                        # 写入完成之后将列数+1
+                                        startcolindex = startcolindex + 1  # 列数索引+1
 
-                                startcolindex = startcolindex + 1
-
-                                # 写入商品总价
-                                productTotalPrice = eachproduct['productTotalPrice']
-                                myordersheet.write(startrowindex, startcolindex, productTotalPrice)
-                                print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex + 1))
-                                if startrowindex == 1:
-                                    headerkeyArr.append('productTotalPrice')  # 将键值加入表头键值数组(仅在第一个订单数据遍历时加入)
-                                    # 设置列宽 只有在第一行的时候才进行统一设置  字数 * 256 默认均为30个字
-                                    myordersheet.col(startcolindex).width = 30 * 256
-
-                                startcolindex = startcolindex + 1
-
-                                # # 合并单元格，合并第2行到第4行的第4列到第5列
-                                # myordersheet.write_merge(2, 4, 4, 5, u'合并')
-
-                                # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会加
+                                                                # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会+1  重要！！！
                                 if len(datavalue) > 1 and not productindex == len(datavalue) - 1:
                                     startrowindex = startrowindex + 1
 
-                    except:
-                        print ('写入第{startcolindex}列数据失败'.format(startcolindex=startcolindex + 1))
+                            ifreadprolist = True # 写完商品数据之后将是否读取过商品数据的标识变为True
 
-            # 写入完成将行数索引+1
+                    except:
+                        print ('写入第{startcolindex}列数据失败'.format(startcolindex=startcolindex))
+
+            # 合并单元格 如果一个订单中的商品列表超过1个则进行单元格合并
+            proListNum = len(eachorderdata['productList'])
+            if proListNum > 1:
+                # 遍历每一个列 将当前rowindex和前rowindex-proListNum+1进行合并  例如有三个商品 当前行为10 则合并第10-3+1 = 8 行到第10行数据
+                for mergeindexdic in mergeIndexArr:
+
+                    mergerowindex = mergeindexdic['mergerowindex']
+                    mergecolindex = mergeindexdic['mergecolindex']
+                    mergevalue = mergeindexdic['mergevalue']
+
+                    myordersheet.write_merge(mergerowindex-proListNum+1, mergerowindex, mergecolindex, mergecolindex,mergevalue,mergestyle)
+
+
+            # 写入一个订单数据之后将行数索引+1
             startrowindex = startrowindex + 1
 
 
@@ -637,8 +664,9 @@ def writetoExcelbyOrderInfoList(orderinfolist):
 
     # 写入表头数据
     try:
+        print ('开始写入表头数据')
         for (headerindex, headerkey) in enumerate(headerkeyArr):
-         myordersheet.write(0,headerindex,headerkey,headerstyle)
+            myordersheet.write(0,headerindex,headerkey,headerstyle)
     except:
         print ('写入表头失败')
     else:
@@ -651,7 +679,195 @@ def writetoExcelbyOrderInfoList(orderinfolist):
 # 测试写入excel文件
 def testwritetoExcel():
 
-    allorderInfoList = [{"orderNum": "201027E3G20Q7B", "totalShippingFee": "2", "buyerName": "dabiyjoe", "productList": [{"productTotalPrice": "50", "productAmount": "1", "productName": "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e01\u0e23\u0e07\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 \u0e1c\u0e49\u0e32\u0e1a\u0e32\u0e07 \u0e21\u0e35\u0e0b\u0e34\u0e1a", "productImg": "https://s-cf-th.shopeesz.com/file/d77b96db1317550913fea75eda989999_tn", "productSpec": "", "productPrice": "50"}, {"productTotalPrice": "70", "productAmount": "1", "productName": "\u0e1c\u0e49\u0e32\u0e04\u0e25\u0e38\u0e21\u0e01\u0e23\u0e07\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 \u0e1c\u0e49\u0e32\u0e1a\u0e32\u0e07 \u0e21\u0e35\u0e0b\u0e34\u0e1a", "productImg": "https://s-cf-th.shopeesz.com/file/d77b96db1317550913fea75eda989999_tn", "productSpec": "", "productPrice": "70"}], "shippingWay": "DHL Domestic", "totalCommissionFee": "3", "totalCost": "120", "totalOrderPrice": "119"}, {"orderNum": "201028F5VK3SMQ", "totalShippingFee": "33", "buyerName": "coolz_may", "productList": [{"productTotalPrice": "40", "productAmount": "2", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "DHL Domestic", "totalCommissionFee": "33", "totalCost": "40", "totalOrderPrice": "39"}, {"orderNum": "201027EN33BCKN", "totalShippingFee": "29", "buyerName": "nunio", "productList": [{"productTotalPrice": "50", "productAmount": "2", "productName": "\u0e27\u0e34\u0e15\u0e32\u0e21\u0e34\u0e19\u0e2b\u0e19\u0e39 \u0e40\u0e01\u0e23\u0e14\u0e1e\u0e23\u0e35\u0e40\u0e21\u0e35\u0e48\u0e22\u0e21 \u0e27\u0e34\u0e15\u0e32\u0e21\u0e34\u0e19\u0e23\u0e27\u0e21\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2b\u0e19\u0e39 \u0e01\u0e23\u0e30\u0e23\u0e2d\u0e01 \u0e40\u0e21\u0e48\u0e19\u0e41\u0e04\u0e23\u0e30 \u0e0a\u0e39\u0e01\u0e49\u0e32\u0e44\u0e01\u0e25\u0e40\u0e14\u0e2d\u0e23\u0e4c \u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e0a\u0e19\u0e34\u0e14\u0e40\u0e25\u0e47\u0e01", "productImg": "https://s-cf-th.shopeesz.com/file/0469c0b78f3dc406099b1deff0fc2495_tn", "productSpec": "", "productPrice": "25"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "50", "totalOrderPrice": "77"}, {"orderNum": "201027EHQ4A8N0", "totalShippingFee": "29", "buyerName": "junemusic155", "productList": [{"productTotalPrice": "40", "productAmount": "1", "productName": "\u0e40\u0e1a\u0e34\u0e23\u0e4c\u0e14\u0e41\u0e21\u0e47\u0e01 \u0e22\u0e32\u0e16\u0e48\u0e32\u0e22\u0e1e\u0e22\u0e32\u0e18\u0e34\u0e19\u0e01 \u0e43\u0e0a\u0e49\u0e44\u0e14\u0e49\u0e43\u0e19\u0e19\u0e01\u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e1b\u0e35\u0e01\u0e2a\u0e32\u0e22\u0e1e\u0e31\u0e19\u0e18\u0e38\u0e4c\u0e15\u0e48\u0e32\u0e07\u0e46", "productImg": "https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn", "productSpec": "", "productPrice": "40"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "40", "totalOrderPrice": "68"}, {"orderNum": "201027DX5E06RS", "totalShippingFee": "0", "buyerName": "noklekintarapanith", "productList": [{"productTotalPrice": "200", "productAmount": "10", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "4", "totalCost": "200", "totalOrderPrice": "196"}, {"orderNum": "201028F4EYWCNM", "totalShippingFee": "29", "buyerName": "rom0807986219", "productList": [{"productTotalPrice": "35", "productAmount": "1", "productName": "\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01\u0e1b\u0e23\u0e2d\u0e14 Fruity \u0e1f\u0e23\u0e38\u0e4a\u0e15\u0e15\u0e35\u0e49 \u0e1c\u0e2a\u0e21\u0e15\u0e31\u0e07\u0e16\u0e31\u0e07\u0e40\u0e0a\u0e48\u0e32 \u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01\u0e01\u0e23\u0e07\u0e2b\u0e31\u0e27\u0e08\u0e38\u0e01 \u0e2a\u0e39\u0e15\u0e23 \u0e40\u0e2d\u0e47\u0e19\u0e40\u0e19\u0e2d\u0e23\u0e4c\u0e08\u0e35\u0e49", "productImg": "https://s-cf-th.shopeesz.com/file/6edbd0a64d6d5e7de635349eb4464fbc_tn", "productSpec": "", "productPrice": "35"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "35", "totalOrderPrice": "63"}, {"orderNum": "201028FWJPE69X", "totalShippingFee": "29", "buyerName": "tom2303", "productList": [{"productTotalPrice": "60", "productAmount": "3", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "60", "totalOrderPrice": "87"}, {"orderNum": "201027E5S6SNRW", "totalShippingFee": "29", "buyerName": "beewichuta", "productList": [{"productTotalPrice": "60", "productAmount": "3", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "60", "totalOrderPrice": "87"}, {"orderNum": "201027EVCAAP8H", "totalShippingFee": "0", "buyerName": "infinity.ohooshop", "productList": [{"productTotalPrice": "29", "productAmount": "1", "productName": "Bird Ring \u0e2b\u0e48\u0e27\u0e07\u0e02\u0e32\u0e19\u0e01 \u0e41\u0e2b\u0e27\u0e19\u0e19\u0e01 \u0e2b\u0e48\u0e27\u0e07\u0e43\u0e2a\u0e48\u0e02\u0e32\u0e19\u0e01 \u0e40\u0e1a\u0e2d\u0e23\u0e4c 4, 5, 6, 8", "productImg": "https://s-cf-th.shopeesz.com/file/f3be3dad3be1487ae087cde31cabbbfb_tn", "productSpec": "", "productPrice": "29"}], "shippingWay": "Shopee Express", "totalCommissionFee": "1", "totalCost": "29", "totalOrderPrice": "28"}, {"orderNum": "201028FMBM1KC1", "totalShippingFee": "35", "buyerName": "namprigtongjud", "productList": [{"productTotalPrice": "360", "productAmount": "20", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "18"}], "shippingWay": "Shopee Express", "totalCommissionFee": "8", "totalCost": "360", "totalOrderPrice": "387"}, {"orderNum": "201028F3WSQ1B0", "totalShippingFee": "0", "buyerName": "nalutpornkrairiksh", "productList": [{"productTotalPrice": "20", "productAmount": "2", "productName": "\u0e16\u0e49\u0e27\u0e22\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e49\u0e33\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e01 \u0e16\u0e49\u0e27\u0e22\u0e19\u0e01\u0e01\u0e32\u0e07\u0e40\u0e02\u0e19 \u0e16\u0e49\u0e27\u0e22\u0e1e\u0e25\u0e32\u0e2a\u0e15\u0e34\u0e01\u0e43\u0e2a\u0e48\u0e2d\u0e32\u0e2b\u0e32\u0e23 \u0e16\u0e49\u0e27\u0e22\u0e2d\u0e32\u0e2b\u0e32\u0e23\u0e2b\u0e19\u0e39 \u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e40\u0e25\u0e35\u0e49\u0e22\u0e07\u0e0a\u0e19\u0e34\u0e14\u0e40\u0e25\u0e47\u0e01", "productImg": "https://s-cf-th.shopeesz.com/file/92c324ced89c30159595e3022fed8ed7_tn", "productSpec": "", "productPrice": "10"}], "shippingWay": "Shopee Express", "totalCommissionFee": "20", "totalCost": "20", "totalOrderPrice": "20"}, {"orderNum": "201028EYC7S4KU", "totalShippingFee": "29", "buyerName": "warangziie89", "productList": [{"productTotalPrice": "40", "productAmount": "2", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "40", "productAmount": "2", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "107"}, {"orderNum": "201028FHW0GNDY", "totalShippingFee": "28", "buyerName": "may163120", "productList": [{"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}, {"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Shopee Express", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "106"}, {"orderNum": "201028FWKVY36S", "totalShippingFee": "29", "buyerName": "katekate27", "productList": [{"productTotalPrice": "174", "productAmount": "3", "productName": "\u0e23\u0e31\u0e07\u0e19\u0e01 \u0e23\u0e31\u0e07\u0e1f\u0e32\u0e07 \u0e1a\u0e49\u0e32\u0e19\u0e1f\u0e32\u0e07\u0e2a\u0e33\u0e2b\u0e23\u0e31\u0e1a\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e40\u0e25\u0e35\u0e49\u0e22\u0e07 \u0e1a\u0e49\u0e32\u0e19\u0e19\u0e01 \u0e1a\u0e49\u0e32\u0e19\u0e0a\u0e39\u0e01\u0e49\u0e32\u0e23\u0e4c \u0e1a\u0e49\u0e32\u0e19\u0e2b\u0e19\u0e39", "productImg": "https://s-cf-th.shopeesz.com/file/1f90807645c55ad38bde6e571a624c44_tn", "productSpec": "", "productPrice": "58"}], "shippingWay": "Shopee Express", "totalCommissionFee": "4", "totalCost": "174", "totalOrderPrice": "199"}, {"orderNum": "201028EXAQ01A5", "totalShippingFee": "26", "buyerName": "nuttarika05", "productList": [{"productTotalPrice": "80", "productAmount": "4", "productName": "\u0e40\u0e2b\u0e22\u0e37\u0e48\u0e2d\u0e01\u0e33\u0e08\u0e31\u0e14\u0e2b\u0e19\u0e39 \u0e2a\u0e39\u0e15\u0e23\u0e15\u0e32\u0e22\u0e41\u0e2b\u0e49\u0e07 \u0e22\u0e32\u0e06\u0e48\u0e32\u0e2b\u0e19\u0e39 \u0e22\u0e32\u0e40\u0e1a\u0e37\u0e48\u0e2d\u0e2b\u0e19\u0e39 \u0e1a\u0e23\u0e23\u0e08\u0e38 4 \u0e40\u0e21\u0e47\u0e14", "productImg": "https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Kerry", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "104"}, {"orderNum": "201027E1PUGQ91", "totalShippingFee": "0", "buyerName": "kanokkan9", "productList": [{"productTotalPrice": "20", "productAmount": "1", "productName": "Cat Toy \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e39\u0e44\u0e02\u0e25\u0e32\u0e19 \u0e02\u0e2d\u0e07\u0e40\u0e25\u0e48\u0e19\u0e41\u0e21\u0e27", "productImg": "https://s-cf-th.shopeesz.com/file/c4c3a448bab7ecf98e951a941e12ffb6_tn", "productSpec": "", "productPrice": "20"}], "shippingWay": "Kerry", "totalCommissionFee": "20", "totalCost": "20", "totalOrderPrice": "20"}, {"orderNum": "201027ECTHYH1C", "totalShippingFee": "35", "buyerName": "panyawutpraimpanya", "productList": [{"productTotalPrice": "80", "productAmount": "2", "productName": "\u0e40\u0e1a\u0e34\u0e23\u0e4c\u0e14\u0e41\u0e21\u0e47\u0e01 \u0e22\u0e32\u0e16\u0e48\u0e32\u0e22\u0e1e\u0e22\u0e32\u0e18\u0e34\u0e19\u0e01 \u0e43\u0e0a\u0e49\u0e44\u0e14\u0e49\u0e43\u0e19\u0e19\u0e01\u0e41\u0e25\u0e30\u0e2a\u0e31\u0e15\u0e27\u0e4c\u0e1b\u0e35\u0e01\u0e2a\u0e32\u0e22\u0e1e\u0e31\u0e19\u0e18\u0e38\u0e4c\u0e15\u0e48\u0e32\u0e07\u0e46", "productImg": "https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn", "productSpec": "", "productPrice": "40"}], "shippingWay": "Kerry", "totalCommissionFee": "2", "totalCost": "80", "totalOrderPrice": "113"}]
+    allorderInfoList = [
+    {
+        "orderNum":"201029KMGD0BVD",
+        "totalShippingFee":"29",
+        "buyerName":"aukkara31",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/fdda562ade723d87ef6b007fd1355acf_tn",
+                "productName":"Parrot Toy ที่แขวนมิลเล็ตสเปรย์ ของเล่นนก มิลเล็ต บันไดนก บันไดชูก้าร์ ที่แขวนอาหาร สำหรับนก หนู ชูก้าร์ กระรอก",
+                "productSpec":"",
+                "productPrice":"44",
+                "productAmount":"1",
+                "productTotalPrice":"44"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"1",
+        "totalCost":"44",
+        "totalOrderPrice":"72"
+    },
+    {
+        "orderNum":"201030MS7P3JKX",
+        "totalShippingFee":"0",
+        "buyerName":"pawanaaphongam",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"4",
+                "productTotalPrice":"80"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"2",
+        "totalCost":"80",
+        "totalOrderPrice":"78"
+    },
+    {
+        "orderNum":"201030MMK2YJ6F",
+        "totalShippingFee":"0",
+        "buyerName":"hussayamonmeoy",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"1",
+                "productTotalPrice":"20"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"20",
+        "totalCost":"20",
+        "totalOrderPrice":"20"
+    },
+    {
+        "orderNum":"201029JXD58DFF",
+        "totalShippingFee":"26",
+        "buyerName":"bangornkamasa",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"5",
+                "productTotalPrice":"100"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"2",
+        "totalCost":"100",
+        "totalOrderPrice":"124"
+    },
+    {
+        "orderNum":"201029K4N93JUU",
+        "totalShippingFee":"29",
+        "buyerName":"yodkwan0604...",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/4fd05f2677676aacc6725dceb928ae4c_tn",
+                "productName":"ปลอกคอสุนัข ปลอกคอเล็ก ปลอกคอ 3 หุน ปลอกคอแมว ปลอกคอสุนัขเล็ก ราคายกโหล",
+                "productSpec":"",
+                "productPrice":"99",
+                "productAmount":"1",
+                "productTotalPrice":"99"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"3",
+        "totalCost":"99",
+        "totalOrderPrice":"125"
+    },
+    {
+        "orderNum":"201029KP41CDW8",
+        "totalShippingFee":"0",
+        "buyerName":"opasza",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"7",
+                "productTotalPrice":"140"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"3",
+        "totalCost":"140",
+        "totalOrderPrice":"137"
+    },
+    {
+        "orderNum":"201030MWYW9DX3",
+        "totalShippingFee":"29",
+        "buyerName":"usachuenarom",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"4",
+                "productTotalPrice":"80"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"2",
+        "totalCost":"80",
+        "totalOrderPrice":"107"
+    },
+    {
+        "orderNum":"201029K5Q4D935",
+        "totalShippingFee":"0",
+        "buyerName":"anrkanatthawin",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/ce4d0f7210b70fdc8ad025cd934662e8_tn",
+                "productName":"สปริงนกเขา สปริงสแตนเลส สปริงล็อคประตูกรง สปริงล็อคถาด สปริงสำหรับกรงนกเขา สปริงสำหรับกรงนกกางเขน",
+                "productSpec":"",
+                "productPrice":"45",
+                "productAmount":"1",
+                "productTotalPrice":"45"
+            },
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/6ba107083a104ab2e50f5477b55126a2_tn",
+                "productName":"วิตามินนก วิตามินรวมสำหรับนก สินค้าคุณภาพ",
+                "productSpec":"",
+                "productPrice":"25",
+                "productAmount":"1",
+                "productTotalPrice":"25"
+            },
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn",
+                "productName":"เบิร์ดแม็ก ยาถ่ายพยาธินก ใช้ได้ในนกและสัตว์ปีกสายพันธุ์ต่างๆ",
+                "productSpec":"",
+                "productPrice":"40",
+                "productAmount":"1",
+                "productTotalPrice":"40"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"3",
+        "totalCost":"110",
+        "totalOrderPrice":"107"
+    },
+    {
+        "orderNum":"201029KP3YNSE3",
+        "totalShippingFee":"28",
+        "buyerName":"aibbetty",
+        "productList":[
+            {
+                "productImg":"https://s-cf-th.shopeesz.com/file/9b854f5eb41f35fcc732830b63a93cad_tn",
+                "productName":"เหยื่อกำจัดหนู สูตรตายแห้ง ยาฆ่าหนู ยาเบื่อหนู บรรจุ 4 เม็ด",
+                "productSpec":"",
+                "productPrice":"20",
+                "productAmount":"10",
+                "productTotalPrice":"200"
+            }
+        ],
+        "shippingWay":"Shopee Express",
+        "totalCommissionFee":"5",
+        "totalCost":"200",
+        "totalOrderPrice":"223"
+    }
+]
 
     writetoExcelbyOrderInfoList(allorderInfoList)
 
@@ -674,6 +890,23 @@ def testreadcookies():
         testlist_cookies = json.loads(f.read())
     print testlist_cookies
 
+# 测试构造有序字典
+def testinitorderdict():
+
+    productInfo = collections.OrderedDict()
+    productInfo.productImg = 'imgurlxxx'
+    productInfo['productName'] = 'productnamexxx'
+    productInfo['productSpec'] = 'productspecxxx'
+    productInfo['productPrice'] = 'productpricexxx'
+    productInfo['productTotalPrice'] = 'producttotalpricexxx'
+    productInfo['productAmount'] = 'productamountxxx'
+
+    print productInfo
+    print isinstance(productInfo, Iterable)
+    print productInfo['productName']
+
+    for eachkey,eachvalue in productInfo.items():
+        print ('key:{key}---value:{value}'.format(key=eachkey,value=eachvalue))
 
 if __name__ == "__main__":
 
@@ -685,4 +918,5 @@ if __name__ == "__main__":
 
     # testwritecookies() # 测试写入cookies
     # testreadcookies() # 测试读取cookies
+    # testinitorderdict() # 测试构造字典
 
