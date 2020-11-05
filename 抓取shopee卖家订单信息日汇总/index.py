@@ -25,12 +25,13 @@ shopeepwd = 'N3184520eung'
 
 stopOrderNum = ''
 # 'orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost'
-excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList','totalShippingFee','totalCommissionFee']
+excelFileKeyArr = ['orderNum','buyerName','shippingWay','productList']
 # 'productName','productImg','productSpec','productPrice','productAmount','productTotalPrice'
-excelProFileKeyArr = ['productName','productSpec','productPrice','productAmount','productTotalPrice']
+excelProFileKeyArr = ['productName','productPrice','productAmount']
 
 driver = None
 logincookiesPath = 'shopeelogincookies.json'
+testlogincookiesPath = 'testshopeelogincookies.json'
 # targetUrl = 'https://seller.th.shopee.cn'
 targetUrl = 'https://seller.th.shopee.cn/portal/sale?type=shipping'
 
@@ -51,15 +52,20 @@ def opentargetUrl():
 
     # 然后删除当前driver的所有cookies
     driver.delete_all_cookies()
-    # 从本地文件中读取cookies写入
-    with open(logincookiesPath, 'r') as f:
-        list_cookies = json.loads(f.read())
 
-    for i in list_cookies:
-        driver.add_cookie(i)
+    # 从本地文件中读取cookies写入 注意该cookies文件必须是一个list 且每一项含有必须的两个key: name和value
+    with open(logincookiesPath, 'r') as f:
+        cookies_list = json.loads(f.read())
+
+
+    for eachcookie in cookies_list:
+        driver.add_cookie(eachcookie)
 
     # 加完cookies之后再次进行一次get访问
-    driver.get(targetUrl)
+    # driver.get(targetUrl)
+
+    # 加完cookies之后刷新当前页面
+    driver.refresh()
 
     # 如果有登录页面元素出现则说明需要重新登录获取cookies
     try:
@@ -180,6 +186,8 @@ def getallorderList():
     totalPages = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')
     for (pageindex, eachpageel) in enumerate(totalPages):
 
+        print ('开始采集第{pageindex}页,分页元素为{el}'.format(pageindex=pageindex+1,el=eachpageel))
+
         # 超过一页的情况下将页面滑到底部
         if(pageindex > 0):
 
@@ -188,25 +196,35 @@ def getallorderList():
             # 停留1秒钟
             sleep(1)
 
-            # 点击该页的分页元素
-            eachpageel.click()
+            try:
+                owneachpageel = WebDriverWait(driver, 20).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR,
+                    'ul.shopee-pager__pages li.shopee-pager__page:nth-child(' + str(pageindex + 1) + ')'))
+                )
+                print ('第{pageindex}页，元素为{el}'.format(pageindex=pageindex + 1, el=owneachpageel))
+                owneachpageel.click()
+            except:
+                print ('点击第{pageindex}个的分页元素失败,开始重新获取该分页元素'.format(pageindex=pageindex + 1))
+
+            sleep(3) # 休眠3秒
+
+
 
             # 再将页面从下滑到上
             # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
 
-            # 直到页面有分页器则说明数据加载完毕了
+            # 直到页面有该页码的分页器被激活则说明数据加载完毕了
             try:
-                paginationel = WebDriverWait(driver, 100).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR,
-                    '.new-order-list .order-list-pannel .order-list-section .pagination-bottom'))
+                activepageel = WebDriverWait(driver, 20).until(
+                    EC.text_to_be_present_in_element((By.CSS_SELECTOR,
+                    'ul.shopee-pager__pages li.shopee-pager__page.active'), str(pageindex+1))
                 )
-            except ValueError as e:
-                print ('获取分页元素失败' + e)
+            except:
+                print ('获取该页码的分页元素失败')
 
-            finally:
-                print ('获取分页元素:')
-                print (paginationel)
-
+            else:
+                print ('获取该页码的分页元素成功:')
+                print (activepageel)
 
         # 获取当前页面的订单列表信息
         try:
@@ -259,11 +277,11 @@ def getallorderList():
             print ('获取第{page}页订单信息元素失败'.format(page=pageindex+1))
 
     sleep(1)
-    # 获取完之后点击回到第一页
-    firstPaginationel = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')[0]
-    firstPaginationel.click()
-    # 然后滚动到最顶部
-    driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
+    # # 获取完之后点击回到第一页
+    # firstPaginationel = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')[0]
+    # firstPaginationel.click()
+    # # 然后滚动到最顶部
+    # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
 
 
     # 获取所有的订单数据完毕
@@ -293,6 +311,7 @@ def getallorderList():
 
     # 将过滤后的订单列表数据返回
     print ('开始查看{num}个订单数据'.format(num=len(filterAllOrderListArr)))
+    print filterAllOrderListArr
     return  filterAllOrderListArr
 
 
@@ -458,28 +477,32 @@ def getOrderInfo(htmlcontent):
 
         productList.append(productInfo)
 
-    print productList
+    # print productList
 
-    # 订单费用相关
+    # 订单费用相关  由于shopee平台的机制问题这里获取的订单相关金额不准确 故暂时屏蔽
     orderPaymentEl = soup.select('.payment-info-details')[0]
 
     # 订单总成本
-    totalCost = orderPaymentEl.select('.income-item.income-subtotal .income-value')[0].text.strip().encode("utf-8")
+    totalCost = ''
+    # totalCost = orderPaymentEl.select('.income-item.income-subtotal .income-value')[0].text.strip().encode("utf-8")
     totalCost = filter(str.isdigit,totalCost)
     # print totalCost
 
     # 总运输费用
-    totalShippingFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[1].text.strip().encode("utf-8")
+    totalShippingFee = ''
+    # totalShippingFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[1].text.strip().encode("utf-8")
     totalShippingFee = filter(str.isdigit, totalShippingFee)
     # print totalShippingFee
 
     # 总平台补贴
-    totalCommissionFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[2].text.strip().encode("utf-8")
+    totalCommissionFee = ''
+    # totalCommissionFee = orderPaymentEl.select('.income-item.income-subtotal .income-value')[2].text.strip().encode("utf-8")
     totalCommissionFee = filter(str.isdigit, totalCommissionFee)
     # print totalCommissionFee
 
     # 总实付金额
-    totalOrderPrice = orderPaymentEl.select('.income-item.income-subtotal.total .income-value')[0].text.strip().encode("utf-8")
+    totalOrderPrice = ''
+    # totalOrderPrice = orderPaymentEl.select('.income-item.income-subtotal.total .income-value')[0].text.strip().encode("utf-8")
     totalOrderPrice = filter(str.isdigit, totalOrderPrice)
     # print totalOrderPrice
 
@@ -511,7 +534,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     sheetname = 'LAL-' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
     myordersheet = workbook.add_sheet(sheetname, cell_overwrite_ok=True)
 
-    # 表格样式
+    # 表头字体样式
     headerfont = xlwt.Font()  # 为样式创建字体
     headerfont.name = 'Times New Roman'
     headerfont.bold = True  # 黑体
@@ -519,13 +542,26 @@ def writetoExcelbyOrderInfoList(orderinfolist):
     headerfont.underline = False  # 下划线
     headerfont.italic = False  # 斜体字
 
-    headeralignment = xlwt.Alignment()  # Create Alignment
-    headeralignment.horz = xlwt.Alignment.HORZ_CENTER  # May be: HORZ_GENERAL, HORZ_LEFT, HORZ_CENTER, HORZ_RIGHT, HORZ_FILLED, HORZ_JUSTIFIED, HORZ_CENTER_ACROSS_SEL, HORZ_DISTRIBUTED
-    headeralignment.vert = xlwt.Alignment.VERT_CENTER  # May be: VERT_TOP, VERT_CENTER, VERT_BOTTOM, VERT_JUSTIFIED, VERT_DISTRIBUTED
+    # 表尾字体样式
+    footerfont = xlwt.Font()  # 为样式创建字体
+    footerfont.name = 'Times New Roman'
+    footerfont.bold = True  # 黑体
+    footerfont.height = 40 * 11  # 字体大小
+    footerfont.colour_index = 10  # 设置其字体颜色
+    footerfont.underline = False  # 下划线
+    footerfont.italic = False  # 斜体字
+
+    centeralignment = xlwt.Alignment()  # Create Alignment
+    centeralignment.horz = xlwt.Alignment.HORZ_CENTER  # May be: HORZ_GENERAL, HORZ_LEFT, HORZ_CENTER, HORZ_RIGHT, HORZ_FILLED, HORZ_JUSTIFIED, HORZ_CENTER_ACROSS_SEL, HORZ_DISTRIBUTED
+    centeralignment.vert = xlwt.Alignment.VERT_CENTER  # May be: VERT_TOP, VERT_CENTER, VERT_BOTTOM, VERT_JUSTIFIED, VERT_DISTRIBUTED
 
     headerstyle = xlwt.XFStyle()  # 初始化样式
     headerstyle.font = headerfont  # 设定样式
-    headerstyle.alignment = headeralignment
+    headerstyle.alignment = centeralignment
+
+    footerstyle = xlwt.XFStyle() # 初始化样式
+    footerstyle.font = footerfont # 设定样式
+    footerstyle.alignment = centeralignment # 设定对齐方式
 
     # 合并表格的样式
     mergestyle = xlwt.XFStyle()  # 初始化合并单元格样式
@@ -567,6 +603,14 @@ def writetoExcelbyOrderInfoList(orderinfolist):
                         # 如果是字符串则直接写入
                         if isinstance(datavalue, str):
 
+                            # 这里增加一个物流公司快递的名称转换
+                            if(headerkey == 'shippingWay'):
+                                if('Shopee' in datavalue):
+                                    datavalue = 'Shopee'
+                                elif ('DHL' in datavalue):
+                                    datavalue = 'DHL'
+
+
                             # 写入数据 如果已经读取过商品的列数据则将数据写入的行数变更为当前行数-商品数组长度+1
                             writerowindex = startrowindex
                             if ifreadprolist:
@@ -607,19 +651,26 @@ def writetoExcelbyOrderInfoList(orderinfolist):
                                     if productdickey in excelProFileKeyArr:
 
                                         # 写入该列数据
+
                                         # 如果是商品图片则写入图片
                                         if productdickey == 'productImg':
                                             # myordersheet.insert_image(startrowindex, startcolindex, 'pro.png', {'url':productvalue})
                                             # 暂时写入图片路径
                                             myordersheet.write(startrowindex, startcolindex, productvalue)
                                         else:
+
+                                            # 这里增加一个商品规格的添加逻辑
+                                            if (productdickey == 'productName'):
+                                                if (eachproduct['productSpec'] is not None and len(eachproduct['productSpec']) > 0):
+                                                    productvalue = productvalue + '(' + eachproduct['productSpec'] + ')'
+
                                             myordersheet.write(startrowindex, startcolindex, productvalue)
                                         print ('写入第{startcolindex}列数据成功'.format(startcolindex=startcolindex))
 
                                         # 如果是第一行的订单数据且为第一个商品数据则将对应的键值放入表头数组中
                                         if orderindex == 0 and productindex == 0:
                                             headerkeyArr.append(productdickey)
-                                            myordersheet.col(startcolindex).width = 10 * 256  # 设置该列列宽
+                                            myordersheet.col(startcolindex).width = 30 * 256  # 设置该列列宽
                                             # 如果是商品名称则将列宽设置为60
                                             if productdickey == 'productName':
                                                 myordersheet.col(startcolindex).width = 60 * 256  # 设置该列列宽
@@ -627,7 +678,7 @@ def writetoExcelbyOrderInfoList(orderinfolist):
                                         # 写入完成之后将列数+1
                                         startcolindex = startcolindex + 1  # 列数索引+1
 
-                                                                # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会+1  重要！！！
+                                # 如果不是最后一个商品则行索引+1 如果是最后一个商品则不用+1 因为最后会+1  重要！！！
                                 if len(datavalue) > 1 and not productindex == len(datavalue) - 1:
                                     startrowindex = startrowindex + 1
 
@@ -636,17 +687,17 @@ def writetoExcelbyOrderInfoList(orderinfolist):
                     except:
                         print ('写入第{startcolindex}列数据失败'.format(startcolindex=startcolindex))
 
-            # 合并单元格 如果一个订单中的商品列表超过1个则进行单元格合并
-            proListNum = len(eachorderdata['productList'])
-            if proListNum > 1:
-                # 遍历每一个列 将当前rowindex和前rowindex-proListNum+1进行合并  例如有三个商品 当前行为10 则合并第10-3+1 = 8 行到第10行数据
-                for mergeindexdic in mergeIndexArr:
-
-                    mergerowindex = mergeindexdic['mergerowindex']
-                    mergecolindex = mergeindexdic['mergecolindex']
-                    mergevalue = mergeindexdic['mergevalue']
-
-                    myordersheet.write_merge(mergerowindex-proListNum+1, mergerowindex, mergecolindex, mergecolindex,mergevalue,mergestyle)
+            # # 合并单元格 如果一个订单中的商品列表超过1个则进行单元格合并
+            # proListNum = len(eachorderdata['productList'])
+            # if proListNum > 1:
+            #     # 遍历每一个列 将当前rowindex和前rowindex-proListNum+1进行合并  例如有三个商品 当前行为10 则合并第10-3+1 = 8 行到第10行数据
+            #     for mergeindexdic in mergeIndexArr:
+            #
+            #         mergerowindex = mergeindexdic['mergerowindex']
+            #         mergecolindex = mergeindexdic['mergecolindex']
+            #         mergevalue = mergeindexdic['mergevalue']
+            #
+            #         myordersheet.write_merge(mergerowindex-proListNum+1, mergerowindex, mergecolindex, mergecolindex,mergevalue,mergestyle)
 
 
             # 写入一个订单数据之后将行数索引+1
@@ -671,6 +722,17 @@ def writetoExcelbyOrderInfoList(orderinfolist):
         print ('写入表头失败')
     else:
         print ('写入表头成功')
+
+    # 写入表尾数据
+    try:
+        print ('开始写入表尾数据')
+        sheetfooterstr = 'in total there is   ' + str(len(orderinfolist)) + '  orders'
+        myordersheet.write(startrowindex + 5 ,3,sheetfooterstr,footerstyle)
+    except:
+        print ('写入表尾失败')
+    else:
+        print ('写入表尾成功')
+
 
     workbookname = 'LAL-' + datetime.now().strftime('%Y-%m-%d %H-%M-%S')
     workbook.save(workbookname+'.xls')
@@ -732,7 +794,7 @@ def testwritetoExcel():
                 "productTotalPrice":"20"
             }
         ],
-        "shippingWay":"Shopee Express",
+        "shippingWay":"DHL Domestic",
         "totalCommissionFee":"20",
         "totalCost":"20",
         "totalOrderPrice":"20"
@@ -821,7 +883,7 @@ def testwritetoExcel():
             {
                 "productImg":"https://s-cf-th.shopeesz.com/file/ce4d0f7210b70fdc8ad025cd934662e8_tn",
                 "productName":"สปริงนกเขา สปริงสแตนเลส สปริงล็อคประตูกรง สปริงล็อคถาด สปริงสำหรับกรงนกเขา สปริงสำหรับกรงนกกางเขน",
-                "productSpec":"",
+                "productSpec":"789",
                 "productPrice":"45",
                 "productAmount":"1",
                 "productTotalPrice":"45"
@@ -829,7 +891,7 @@ def testwritetoExcel():
             {
                 "productImg":"https://s-cf-th.shopeesz.com/file/6ba107083a104ab2e50f5477b55126a2_tn",
                 "productName":"วิตามินนก วิตามินรวมสำหรับนก สินค้าคุณภาพ",
-                "productSpec":"",
+                "productSpec":"456",
                 "productPrice":"25",
                 "productAmount":"1",
                 "productTotalPrice":"25"
@@ -837,7 +899,7 @@ def testwritetoExcel():
             {
                 "productImg":"https://s-cf-th.shopeesz.com/file/d61c8dcd8be2038dd862c9756cbfe56a_tn",
                 "productName":"เบิร์ดแม็ก ยาถ่ายพยาธินก ใช้ได้ในนกและสัตว์ปีกสายพันธุ์ต่างๆ",
-                "productSpec":"",
+                "productSpec":"123",
                 "productPrice":"40",
                 "productAmount":"1",
                 "productTotalPrice":"40"
@@ -881,7 +943,7 @@ def testwritecookies():
     # 将获取到的cookies序列化保存到本地
     testcookiesdict = json.dumps(testcookies)
 
-    with open(logincookiesPath, 'w') as f:
+    with open(testlogincookiesPath, 'w') as f:
         f.write(testcookiesdict)
 
 # 测试读取cookies文件
@@ -910,11 +972,11 @@ def testinitorderdict():
 
 if __name__ == "__main__":
 
-    # opendriver() # 打开浏览器
-    # opentargetUrl() # 打开目标页面 开始进行操作
+    opendriver() # 打开浏览器
+    opentargetUrl() # 打开目标页面 开始进行操作
 
 
-    testwritetoExcel() # 测试写如订单数据到excel中
+    # testwritetoExcel() # 测试写入订单数据到excel中
 
     # testwritecookies() # 测试写入cookies
     # testreadcookies() # 测试读取cookies
