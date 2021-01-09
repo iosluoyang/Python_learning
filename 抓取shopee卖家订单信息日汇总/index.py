@@ -166,115 +166,84 @@ def getallorderList():
 
     # 直到页面有分页器则说明数据加载完毕了
 
+    ifhaspagination = False # 是否有分页元素 默认为否
+
     try:
-        paginationel =  WebDriverWait(driver, 100).until(
+        paginationel =  WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.CSS_SELECTOR,
             '.new-order-list .order-list-pannel .order-list-section .pagination-bottom'))
         )
-    except ValueError as e:
-        print ('获取分页元素失败' + e)
-
-    finally:
-        print ('获取到分页元素:')
-        print (paginationel)
+        ifhaspagination = True # 获取到了分页元素
+    except:
+        # 获取分页元素失败 尝试直接获取当前页的订单数据
+        print ('获取分页元素失败')
 
 
     # 所有的订单元素集合
     allorderListArr = []
 
-    # 获取总共有几页
-    totalPages = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')
-    for (pageindex, eachpageel) in enumerate(totalPages):
+    # 根据是否有分页元素选择是否进行遍历分页获取订单数据
+    if(ifhaspagination):
 
-        print ('开始采集第{pageindex}页,分页元素为{el}'.format(pageindex=pageindex+1,el=eachpageel))
+        # 获取总共有几页
+        totalPages = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')
+        for (pageindex, eachpageel) in enumerate(totalPages):
 
-        # 超过一页的情况下将页面滑到底部
-        if(pageindex > 0):
+            print ('开始采集第{pageindex}页,分页元素为{el}'.format(pageindex=pageindex + 1, el=eachpageel))
 
-            # 将该页面从上滑到下
-            driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
-            # 停留1秒钟
-            sleep(1)
+            # 超过一页的情况下将页面滑到底部
+            if (pageindex > 0):
 
+                # 将该页面从上滑到下
+                driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
+                # 停留1秒钟
+                sleep(1)
+
+                try:
+                    owneachpageel = WebDriverWait(driver, 20).until(
+                        EC.presence_of_element_located((By.CSS_SELECTOR,
+                                                        'ul.shopee-pager__pages li.shopee-pager__page:nth-child(' + str(
+                                                            pageindex + 1) + ')'))
+                    )
+                    print ('第{pageindex}页，元素为{el}'.format(pageindex=pageindex + 1, el=owneachpageel))
+                    owneachpageel.click()
+                except:
+                    print ('点击第{pageindex}个的分页元素失败,开始重新获取该分页元素'.format(pageindex=pageindex + 1))
+
+                sleep(3)  # 休眠3秒
+
+                # 再将页面从下滑到上
+                # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
+
+                # 直到页面有该页码的分页器被激活则说明数据加载完毕了
+                try:
+                    activepageel = WebDriverWait(driver, 20).until(
+                        EC.text_to_be_present_in_element((By.CSS_SELECTOR,
+                                                          'ul.shopee-pager__pages li.shopee-pager__page.active'),
+                                                         str(pageindex + 1))
+                    )
+                except:
+                    print ('获取该页码的分页元素失败')
+
+                else:
+                    print ('获取该页码的分页元素成功:')
+                    print (activepageel)
+
+            # 获取当前页面的订单列表信息
             try:
-                owneachpageel = WebDriverWait(driver, 20).until(
-                    EC.presence_of_element_located((By.CSS_SELECTOR,
-                    'ul.shopee-pager__pages li.shopee-pager__page:nth-child(' + str(pageindex + 1) + ')'))
-                )
-                print ('第{pageindex}页，元素为{el}'.format(pageindex=pageindex + 1, el=owneachpageel))
-                owneachpageel.click()
-            except:
-                print ('点击第{pageindex}个的分页元素失败,开始重新获取该分页元素'.format(pageindex=pageindex + 1))
+                pageorderlist = getorderlistbypage()
+                allorderListArr += pageorderlist
 
-            sleep(3) # 休眠3秒
+                print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex + 1, totalPage=len(totalPages)))
 
 
+            except ValueError as e:
+                print ('获取第{page}页订单信息元素失败'.format(page=pageindex + 1))
 
-            # 再将页面从下滑到上
-            # driver.execute_script("window.scrollTo({top: 0, behavior: 'smooth'});")
+    # 没有分页元素 则默认为仅有一页数据 获取当前订单数据
+    else:
+        allorderListArr = getorderlistbypage()
 
-            # 直到页面有该页码的分页器被激活则说明数据加载完毕了
-            try:
-                activepageel = WebDriverWait(driver, 20).until(
-                    EC.text_to_be_present_in_element((By.CSS_SELECTOR,
-                    'ul.shopee-pager__pages li.shopee-pager__page.active'), str(pageindex+1))
-                )
-            except:
-                print ('获取该页码的分页元素失败')
-
-            else:
-                print ('获取该页码的分页元素成功:')
-                print (activepageel)
-
-        # 获取当前页面的订单列表信息
-        try:
-            orderlistels = WebDriverWait(driver, 100).until(
-                EC.presence_of_all_elements_located((By.CSS_SELECTOR,
-                '.new-order-list .order-list-pannel .order-list-section .order-list-body a.order-item'))
-            )
-
-            # 在此将该页数据需要的信息提取出来 否则在后面针对该元素无法进行数据获取
-
-            # 遍历订单列表 获取订单相关信息
-            for (index, eachorderitemel) in enumerate(orderlistels):
-                # 获取元素对应的订单相关信息
-
-                # 订单号
-                orderNum = eachorderitemel.find_element_by_css_selector(
-                    '.order-title .orderid'
-                ).get_attribute('innerHTML').split(';')[1].encode("utf-8")
-                # print ('该订单的订单号为:{orderNum}'.format(orderNum=orderNum))
-
-                # 买家名称
-                buyerName = eachorderitemel.find_element_by_css_selector(
-                    '.order-title .title-prefix .user-header .username'
-                ).text.encode("utf-8")
-                # print ('该订单的买家名称为:{buyerName}'.format(buyerName=buyerName))
-
-                # 物流方式
-                shippingWay = eachorderitemel.find_element_by_css_selector(
-                    '.order-list-item .carrier-name'
-                ).text.encode("utf-8")
-                # print ('该订单的运送方式为:{shippingWay}'.format(shippingWay=shippingWay))
-
-                # 订单详情链接
-                orderLink = eachorderitemel.get_attribute('href').encode("utf-8")
-                # print ('该订单的详情链接为:{orderLink}'.format(orderLink=orderLink))
-
-                orderdata = {
-                    "orderNum": orderNum,
-                    "buyerName": buyerName,
-                    "shippingWay": shippingWay,
-                    "orderLink": orderLink
-                }
-
-                allorderListArr.append(orderdata)
-
-            print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex+1,totalPage=len(totalPages)))
-
-
-        except ValueError as e:
-            print ('获取第{page}页订单信息元素失败'.format(page=pageindex+1))
 
     sleep(1)
     # # 获取完之后点击回到第一页
@@ -314,6 +283,57 @@ def getallorderList():
     print filterAllOrderListArr
     return  filterAllOrderListArr
 
+# 获取当前页的订单数据
+def getorderlistbypage():
+    # 获取当前页面的订单列表信息
+    try:
+
+        orderlistels = WebDriverWait(driver, 100).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR,
+            '.new-order-list .order-list-pannel .order-list-section .order-list-body a.order-item'))
+        )
+
+        # 在此将该页数据需要的信息提取出来 否则在后面针对该元素无法进行数据获取
+        pageOrderList = []
+        # 遍历订单列表 获取订单相关信息
+        for (index, eachorderitemel) in enumerate(orderlistels):
+            # 获取元素对应的订单相关信息
+
+            # 订单号
+            orderNum = eachorderitemel.find_element_by_css_selector(
+                '.order-title .orderid'
+            ).get_attribute('innerHTML').split(';')[1].encode("utf-8")
+            # print ('该订单的订单号为:{orderNum}'.format(orderNum=orderNum))
+
+            # 买家名称
+            buyerName = eachorderitemel.find_element_by_css_selector(
+                '.order-title .title-prefix .user-header .username'
+            ).text.encode("utf-8")
+            # print ('该订单的买家名称为:{buyerName}'.format(buyerName=buyerName))
+
+            # 物流方式
+            shippingWay = eachorderitemel.find_element_by_css_selector(
+                '.order-list-item .carrier-name'
+            ).text.encode("utf-8")
+            # print ('该订单的运送方式为:{shippingWay}'.format(shippingWay=shippingWay))
+
+            # 订单详情链接
+            orderLink = eachorderitemel.get_attribute('href').encode("utf-8")
+            # print ('该订单的详情链接为:{orderLink}'.format(orderLink=orderLink))
+
+            orderdata = {
+                "orderNum": orderNum,
+                "buyerName": buyerName,
+                "shippingWay": shippingWay,
+                "orderLink": orderLink
+            }
+
+            pageOrderList.append(orderdata)
+
+        return pageOrderList
+
+    except:
+        print ('未获取当前页的订单数据')
 
 # 根据订单列表数据获取对应的订单详情数据的集合
 def getOrderInfoListbyOrderList(orderList):
