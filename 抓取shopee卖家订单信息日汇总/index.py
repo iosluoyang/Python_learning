@@ -15,7 +15,6 @@ from time import sleep
 import re
 import json
 import xlwt
-# import xlsxwriter
 import collections
 from collections import Iterable
 from datetime import datetime
@@ -129,7 +128,6 @@ def starttologin():
     # 写入完cookies之后重新访问目标链接
     opentargetUrl()
 
-
 # 获取所有的订单列表
 def getallorderList():
 
@@ -176,7 +174,7 @@ def getallorderList():
         ifhaspagination = True # 获取到了分页元素
     except:
         # 获取分页元素失败 尝试直接获取当前页的订单数据
-        print ('获取分页元素失败')
+        print ('未获取到分页元素')
 
 
     # 所有的订单元素集合
@@ -187,9 +185,11 @@ def getallorderList():
 
         # 获取总共有几页
         totalPages = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')
+        print ('总共获取到{totalPage}页的订单'.format(totalPage=len(totalPages)))
+
         for (pageindex, eachpageel) in enumerate(totalPages):
 
-            print ('开始采集第{pageindex}页,分页元素为{el}'.format(pageindex=pageindex + 1, el=eachpageel))
+            print ( '开始采集第{pageindex}/{totalPage}页'.format(pageindex=pageindex + 1, totalPage=len(totalPages)) )
 
             # 超过一页的情况下将页面滑到底部
             if (pageindex > 0):
@@ -199,13 +199,14 @@ def getallorderList():
                 # 停留1秒钟
                 sleep(1)
 
+                # 点击自己当前的分页元素 以防止点击事情失效
                 try:
                     owneachpageel = WebDriverWait(driver, 20).until(
                         EC.presence_of_element_located((By.CSS_SELECTOR,
                                                         'ul.shopee-pager__pages li.shopee-pager__page:nth-child(' + str(
                                                             pageindex + 1) + ')'))
                     )
-                    print ('第{pageindex}页，元素为{el}'.format(pageindex=pageindex + 1, el=owneachpageel))
+                    print ('点击了当前页的分页元素:第{pageindex}页，元素为{el}'.format(pageindex=pageindex + 1, el=owneachpageel))
                     owneachpageel.click()
                 except:
                     print ('点击第{pageindex}个的分页元素失败,开始重新获取该分页元素'.format(pageindex=pageindex + 1))
@@ -234,11 +235,11 @@ def getallorderList():
                 pageorderlist = getorderlistbypage()
                 allorderListArr += pageorderlist
 
-                print ('获取第{page}/{totalPage}页所有订单信息元素成功'.format(page=pageindex + 1, totalPage=len(totalPages)))
+                print ('获取第{page}/{totalPage}页订单列表信息元素成功'.format(page=pageindex + 1, totalPage=len(totalPages)))
 
 
-            except ValueError as e:
-                print ('获取第{page}页订单信息元素失败'.format(page=pageindex + 1))
+            except:
+                print ('获取第{page}/{totalPage}页订单列表信息元素失败'.format(page=pageindex + 1, totalPage=len(totalPages)))
 
     # 没有分页元素 则默认为仅有一页数据 获取当前订单数据
     else:
@@ -246,7 +247,8 @@ def getallorderList():
 
 
     sleep(1)
-    # # 获取完之后点击回到第一页
+
+    # # 获取完之后点击回到第一页 (此处因为点击了其他元素 之前获取的分页元素已经失效 无法进行选择点击)
     # firstPaginationel = paginationel.find_elements_by_css_selector('ul.shopee-pager__pages li.shopee-pager__page')[0]
     # firstPaginationel.click()
     # # 然后滚动到最顶部
@@ -445,7 +447,8 @@ def getOrderInfo(htmlcontent):
     # print orderNum
 
     # 物流方式
-    shippingWay = soup.select('.od-shippin .logistic-history-log .carrier')[0].text.strip().encode("utf-8")
+    # shopee规则有时会出现 .carrier 和.actual-carrier-name 此时.actual-carrier-name代表实际的物流方式
+    shippingWay = soup.select('.od-shippin .logistic-history-log .actual-carrier-name')[0].text.strip().encode("utf-8")
     # print shippingWay
 
     # 买家名称
