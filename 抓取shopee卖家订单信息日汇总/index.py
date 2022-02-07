@@ -20,7 +20,7 @@ from collections import Iterable
 from datetime import datetime
 
 shopeeaccount = '0955511464'
-shopeepwd = 'N3184520eung'
+shopeepwd = 'Wyhhsh1993'
 
 stopOrderNum = ''
 # 'orderNum','customerName','shippingWay','productList','totalShippingFee','totalCommissionFee','totalOrderPrice','totalCost'
@@ -77,6 +77,8 @@ def opentargetUrl():
 
         # 找不到说明无需登录 直接进行下面的操作即可
         print '没有定位到登录页面元素,本次无需登录,直接开始获取订单数据'
+        # 如果有遮罩层则定位按钮区域进行点击
+        clickmask()
         allOrderList = getallorderList()  # 获取所有的订单列表数据
         allOrderInfoList = getOrderInfoListbyOrderList(allOrderList)  # 根据传入的订单列表获取对应的订单详情列表数据
         writetoExcelbyOrderInfoList(allOrderInfoList) # 将订单详情列表数据写入excel中
@@ -128,15 +130,31 @@ def starttologin():
     # 写入完cookies之后重新访问目标链接
     opentargetUrl()
 
+# 点击遮罩层
+def clickmask():
+    # 定位遮罩层中的跳过按钮
+    try:
+        maskskipbtnel =  WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR,
+            '.on-boarding .on-boarding-tips .onboarding-footer .btn-skip'))
+        )
+        maskskipbtnel.click()
+        print ('点击了遮罩层中的跳过按钮')
+    except:
+        # 获取分页元素失败 尝试直接获取当前页的订单数据
+        print ('未获取到遮罩层跳过按钮元素')
+
+
 # 获取所有的订单列表
 def getallorderList():
 
+    # 将该页面从上滑到下
+    driver.execute_script("window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});")
     # 直到页面有分页器则说明数据加载完毕了
-
     ifhaspagination = False # 是否有分页元素 默认为否
 
     try:
-        paginationel =  WebDriverWait(driver, 10).until(
+        paginationel =  WebDriverWait(driver, 15).until(
             EC.presence_of_element_located((By.CSS_SELECTOR,
             '.new-order-list .order-list-pannel .order-list-section .pagination-bottom'))
         )
@@ -178,8 +196,6 @@ def getallorderList():
                     owneachpageel.click()
                 except:
                     print ('点击第{pageindex}个的分页元素失败,开始重新获取该分页元素'.format(pageindex=pageindex + 1))
-
-                # sleep(3)  # 休眠3秒
 
 
                 # 直到页面有该页码的分页器被激活则说明数据加载完毕了
@@ -538,33 +554,33 @@ def writetoExcelbyOrderInfoList(orderinfolist):
 
     # 表头字体样式
     headerfont = xlwt.Font()  # 为样式创建字体
-    headerfont.name = 'Times New Roman'
+    headerfont.name = 'Cordia New'
     headerfont.bold = True  # 黑体
-    headerfont.height = 22 * 11 # 字体大小
+    headerfont.height = 18 * 12 # 字体大小
     headerfont.underline = False  # 下划线
     headerfont.italic = False  # 斜体字
 
     # 正常数据类型字体样式
     normalfont = xlwt.Font()  # 为样式创建字体
-    normalfont.name = 'Times New Roman'
+    normalfont.name = 'Cordia New'
     normalfont.bold = False  # 黑体
-    normalfont.height = 18 * 11  # 字体大小
+    normalfont.height = 18 * 12  # 字体大小
     normalfont.underline = False  # 下划线
     normalfont.italic = False  # 斜体字
 
     # 数字类型字体样式
     numberfont = xlwt.Font()  # 为样式创建字体
-    numberfont.name = 'Times New Roman'
+    numberfont.name = 'Cordia New'
     numberfont.bold = True  # 黑体
-    numberfont.height = 33 * 11  # 字体大小
+    numberfont.height = 18 * 12  # 字体大小
     numberfont.underline = False  # 下划线
     numberfont.italic = False  # 斜体字
 
     # 表尾字体样式
     footerfont = xlwt.Font()  # 为样式创建字体
-    footerfont.name = 'Times New Roman'
+    footerfont.name = 'Cordia New'
     footerfont.bold = True  # 黑体
-    footerfont.height = 40 * 11  # 字体大小
+    footerfont.height = 40 * 12  # 字体大小
     footerfont.colour_index = 10  # 设置其字体颜色
     footerfont.underline = False  # 下划线
     footerfont.italic = False  # 斜体字
